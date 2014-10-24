@@ -4,14 +4,17 @@
 ##	Configure the country abbreviation and name:
 country_name <- ""
 
+##	The version of the scripts used to produce the mapping products, and
+##		which will match the "_v" portion of the filename outputs:
+rf_version <- "2b"
+
 
 ##	These should be set before the Metadata.r script is run, included from
 ##		the processing scripts in the RF /src folder.  But if they aren't and
 ##		Metadata.r is run separately they should be configured here otherwise
 ##		the following configuration information will not run:
-#country <- ""
-#rf_version = "2b"
-#root_path <- "D:\\Documents\\Graduate School\\Research\\Population\\Analysis\\RF\\Working RF\\"
+#country <- "RWA"
+#root_path <- "D:\\Documents\\Graduate School\\Research\\Population\\Data\\"
 #source("01.0 - Configuration.py.r")
 
 
@@ -70,8 +73,7 @@ metadata <- list()
 ##		shapefile or image can be anything you want it to be.
 
 
-##	Required datasets, should be updated for every country either here or
-##		overwritten in the custom ancillary datasets below:
+## Required datasets, should be updated for every country:
 
 
 var_name <- "Census"
@@ -290,95 +292,95 @@ metadata[[var_name]][["path"]] <- paste(project_path, metadata[[var_name]]$datas
 ##		default data sources above:
 
 
-var_names <- c(
-	"Census",
-	"Landcover",
-	"Buildings",
-  "Points",
-  "Rivers",
-  "Roads",
-  "Uses"
-)
-
-dataset_classes <- c(
-	"polygon",
-	"raster",
-	"polygon",
-  "point",
-	"linear",
-	"linear",
-	"polygon"
-)
-
-dataset_titles <- c(
-	"Rwandan Census, 2002",
-	"Remotely-sensed, Classified Landcover",
-	"Digitized Building Locations (OSM), 2013",
-	"Points of Interest Locations (OSM), 2013",
-	"Rivers (OSM), 2013",
-	"Roads (OSM), 2013",
-	"Delineated Land Uses (OSM), 2013"
-)
-
-dataset_sources <- c(
-	"National Institute of Statistics of Rwanda, 2002",
-	"Fused Globcover 2009 (300m) With Landsat-Derived Urban/Rural Cover (100m)",
-	"Open Street Map, Downloaded 2013-09-16, http://extract.bbbike.org/",
-	"Open Street Map, Downloaded 2013-09-16, http://extract.bbbike.org/",
-	"Open Street Map, Downloaded 2013-09-16, http://extract.bbbike.org/",
-	"Open Street Map, Downloaded 2013-09-16, http://extract.bbbike.org/",
-	"Open Street Map, Downloaded 2013-09-16, http://extract.bbbike.org/"
-)
-
-dataset_descriptions <- c(
-	"These high spatial resolution census block data were attained through in-country partners for 2002.",
-	"Land cover information was combined from a GlobCover 2009 coverage and fused with Landsat-derived urban/rural built area classification to construct a single land cover dataset.",
-	"These data were downloaded as part of a per-country package of data layers made availalble as shapefiles through the http://extract.bbbike.org website, extracted from the Open Street Map (OSM) database.",
-	"These data were downloaded as part of a per-country package of data layers made availalble as shapefiles through the http://extract.bbbike.org website, extracted from the Open Street Map (OSM) database.",
-	"These data were downloaded as part of a per-country package of data layers made availalble as shapefiles through the http://extract.bbbike.org website, extracted from the Open Street Map (OSM) database.",
-	"These data were downloaded as part of a per-country package of data layers made availalble as shapefiles through the http://extract.bbbike.org website, extracted from the Open Street Map (OSM) database.",
-	"These data were downloaded as part of a per-country package of data layers made availalble as shapefiles through the http://extract.bbbike.org website, extracted from the Open Street Map (OSM) database."
-)
-
-dataset_derived <- list(
-	c("area", "buff", "zones"),
-	c( 
-		"prp011", "cls011", "dst011",
-		"prp040", "cls040", "dst040",
-		"prp130", "cls130", "dst130",
-		"prp140", "cls140", "dst140",
-		"prp150", "cls150", "dst150",
-		"prp160", "cls160", "dst160",
-		"prp190", "cls190", "dst190",
-		"prp200", "cls200", "dst200",
-		"prp210", "cls210", "dst210",
-		"prp230", "cls230", "dst230",
-		"prp240", "cls240", "dst240",
-		"prp250", "cls250", "dst250",
-		"prpBLT", "clsBLT", "dstBLT"
-	),
-	c("prp", "cls", "dst"),
-	c("prp", "cls", "dst"),
-	c("prp", "cls", "dst"),
-	c("prp", "cls", "dst"),
-	c("prp", "cls", "dst")
-)
-
-for (i in 1:length(var_names)) {
-	var_name <- var_names[i]
-	var_folder <- paste(project_path, var_name, "/", sep="")
-
-	metadata[[var_name]] <- list(
-		dataset_folder = var_name,
-		dataset_title = dataset_titles[i],
-		dataset_source = dataset_sources[i],
-		dataset_name = list.files(var_folder, "shp$|tif$|img$"),
-		dataset_description = dataset_descriptions[i],
-		dataset_class = dataset_classes[i],
-		derived = dataset_derived[[i]]
-	)
-	metadata[[var_name]][["path"]] <- paste(var_folder, metadata[[var_name]]$dataset_name, sep="")
-}
+#var_names <- c(
+#	"Census",
+#	"Landcover",
+#	"Buildings",
+#  "Points",
+#  "Rivers",
+#  "Roads",
+#  "Uses"
+#)
+#
+#dataset_classes <- c(
+#	"polygon",
+#	"raster",
+#	"polygon",
+#  "point",
+#	"linear",
+#	"linear",
+#	"polygon"
+#)
+#
+#dataset_titles <- c(
+#	"Rwandan Census, 2002",
+#	"Remotely-sensed, Classified Landcover",
+#	"Digitized Building Locations (OSM), 2013",
+#	"Points of Interest Locations (OSM), 2013",
+#	"Rivers (OSM), 2013",
+#	"Roads (OSM), 2013",
+#	"Delineated Land Uses (OSM), 2013"
+#)
+#
+#dataset_sources <- c(
+#	"National Institute of Statistics of Rwanda, 2002",
+#	"Fused Globcover 2009 (300m) With Landsat-Derived Urban/Rural Cover (100m)",
+#	"Open Street Map, Downloaded 2013-09-16, http://extract.bbbike.org/",
+#	"Open Street Map, Downloaded 2013-09-16, http://extract.bbbike.org/",
+#	"Open Street Map, Downloaded 2013-09-16, http://extract.bbbike.org/",
+#	"Open Street Map, Downloaded 2013-09-16, http://extract.bbbike.org/",
+#	"Open Street Map, Downloaded 2013-09-16, http://extract.bbbike.org/"
+#)
+#
+#dataset_descriptions <- c(
+#	"These high spatial resolution census block data were attained through in-country partners for 2002.",
+#	"Land cover information was combined from a GlobCover 2009 coverage and fused with Landsat-derived urban/rural built area classification to construct a single land cover dataset.",
+#	"These data were downloaded as part of a per-country package of data layers made availalble as shapefiles through the http://extract.bbbike.org website, extracted from the Open Street Map (OSM) database.",
+#	"These data were downloaded as part of a per-country package of data layers made availalble as shapefiles through the http://extract.bbbike.org website, extracted from the Open Street Map (OSM) database.",
+#	"These data were downloaded as part of a per-country package of data layers made availalble as shapefiles through the http://extract.bbbike.org website, extracted from the Open Street Map (OSM) database.",
+#	"These data were downloaded as part of a per-country package of data layers made availalble as shapefiles through the http://extract.bbbike.org website, extracted from the Open Street Map (OSM) database.",
+#	"These data were downloaded as part of a per-country package of data layers made availalble as shapefiles through the http://extract.bbbike.org website, extracted from the Open Street Map (OSM) database."
+#)
+#
+#dataset_derived <- list(
+#	c("area", "buff", "zones"),
+#	c( 
+#		"prp011", "cls011", "dst011",
+#		"prp040", "cls040", "dst040",
+#		"prp130", "cls130", "dst130",
+#		"prp140", "cls140", "dst140",
+#		"prp150", "cls150", "dst150",
+#		"prp160", "cls160", "dst160",
+#		"prp190", "cls190", "dst190",
+#		"prp200", "cls200", "dst200",
+#		"prp210", "cls210", "dst210",
+#		"prp230", "cls230", "dst230",
+#		"prp240", "cls240", "dst240",
+#		"prp250", "cls250", "dst250",
+#		"prpBLT", "clsBLT", "dstBLT"
+#	),
+#	c("prp", "cls", "dst"),
+#	c("prp", "cls", "dst"),
+#	c("prp", "cls", "dst"),
+#	c("prp", "cls", "dst"),
+#	c("prp", "cls", "dst")
+#)
+#
+#for (i in 1:length(var_names)) {
+#	var_name <- var_names[i]
+#	var_folder <- paste(project_path, var_name, "/", sep="")
+#
+#	metadata[[var_name]] <- list(
+#		dataset_folder = var_name,
+#		dataset_title = dataset_titles[i],
+#		dataset_source = dataset_sources[i],
+#		dataset_name = list.files(var_folder, "shp$|tif$|img$"),
+#		dataset_description = dataset_descriptions[i],
+#		dataset_class = dataset_classes[i],
+#		derived = dataset_derived[[i]]
+#	)
+#	metadata[[var_name]][["path"]] <- paste(var_folder, metadata[[var_name]]$dataset_name, sep="")
+#}
 
 
 ##	END:	Metadata descriptions:

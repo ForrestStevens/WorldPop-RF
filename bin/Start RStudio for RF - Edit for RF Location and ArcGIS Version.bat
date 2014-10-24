@@ -2,7 +2,7 @@ REM Set these to reflect the location where you have unzipped the RF working
 REM 	folders and the location and version of Python/ArcGIS for your particular
 REM 	environment...
 
-set RFHOME=D:\Documents\Graduate School\Research\Population\Analysis\RF\RF.1.0
+set RFHOME=D:\Documents\Graduate School\Research\Population\Analysis\RF\Working RF
 set ARCPY=C:\Python26\ArcGIS10.0
 
 

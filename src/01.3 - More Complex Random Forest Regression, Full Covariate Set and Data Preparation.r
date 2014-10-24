@@ -50,6 +50,21 @@ if (!exists("fixed_set")) {
 }
 
 
+##	You can control whether you want covariates re-aggregated/summarized
+##		by setting this flag to TRUE or FALSE:
+overwrite_compiled_covariates <- FALSE
+
+
+##	You can control whether or not we should estimate or combine Random
+##		Forest models (init_popfit, popfit, popfit_combined, popfit_final, and
+##		the quantile output) by setting this flag to TRUE or FALSE.  This
+##		is useful when we don't want to run the RF code at all for new
+##		countries, but instead just want to use an existing popfit_final.RData
+##		and popfit_quant.RData that we copied into the /output/XXX/tmp folder
+##		for the current country:
+estimate_RF <- TRUE
+
+
 ##	END:	RandomForest configuration
 #####
 
@@ -232,24 +247,24 @@ zonal_raster <- raster(zonal_raster_path)
 
 start_time = proc.time()[3]
 
-if (file.exists("census_covariates.shp")) {
+if (file.exists("census_covariates.shp") & overwrite_compiled_covariates==FALSE) {
 	census_data <- readOGR(".", "census_covariates")
 } else {
-  ##  You can set doit to FALSE if you want to start processing the 
-  ##    covariates from somewhere in the middle (e.g. if the zonal stats
-  ##    barfed).  If doit is FALSE then assume that census_data already
-  ##    is partially processed and don't load it again.)  You should set the
+	##  You can set doit to FALSE if you want to start processing the 
+	##    covariates from somewhere in the middle (e.g. if the zonal stats
+	##    barfed).  If doit is FALSE then assume that census_data already
+	##    is partially processed and don't load it again.)  You should set the
 	##		doit_var_name argument to the last known successfully processed
 	##		variable:
-  doit <- TRUE
-  #doit <- FALSE
+	doit <- TRUE
+	#doit <- FALSE
 	#doit_var_name <- "roa_dst"
 
 
-  if (doit) {
-	  ##	Read in our census data with final population counts and area field, F_AREA (in m^2):
-	  census_data <- readOGR(".", "census_area")
-  }
+	if (doit) {
+		##	Read in our census data with final population counts and area field, F_AREA (in m^2):
+		census_data <- readOGR(".", "census_area")
+	}
 
 	##	Recalculate our areas into hectares and add them to the census data:
 	census_data$AREA_HA <- census_data$F_AREA / 10000
@@ -319,7 +334,7 @@ if (file.exists("census_covariates.shp")) {
 	writeOGR(census_data, ".", paste("census_covariates", sep=""), driver="ESRI Shapefile", check_exists=TRUE, overwrite_layer=TRUE)
 }
 
-print(paste("Elapsed Processing Time:", proc.time()[3] - start_time, "seconds"))
+	print(paste("Elapsed Processing Time:", proc.time()[3] - start_time, "seconds"))
 
 ##	END:	Data loading and data structure setup
 #####
@@ -328,406 +343,431 @@ print(paste("Elapsed Processing Time:", proc.time()[3] - start_time, "seconds"))
 
 #####
 ##	BEGIN:	Estimate RandomForest model
+
 setwd(output_path)
 
-#####
-##	Set up response and covariate dataframes for the random forest modeling:
-y_data <- census_data@data$POPD_PPHA
+
+##	Check to see whether we run the RF code at all, and if not we just
+##		load existing popfit_final.RData and popfit_quant.RData that we
+##		must have copied or created before into the output/XXX/tmp folder:
+if (estimate_RF) {
+
+	#####
+	##	Set up response and covariate dataframes for the random forest modeling:
+	y_data <- census_data@data$POPD_PPHA
 
 
-if (!is.null(fixed_set)) {
-  country_old <- fixed_set[1]
-  output_path_tmp <- paste(root_path, "/output/", country_old, "/tmp/", sep="")
-  
-	##	Load the first listed, existing country and rename its popfit_final:
-	load(file=paste(output_path_tmp, "popfit_final.RData", sep=""))
-  popfit_final_old <- popfit_final
-
-  fixed_predictors <- row.names(importance(popfit_final_old))
-  
-  output_path_tmp <- paste(root_path, "/output/", country, "/tmp/", sep="")
-} else {
-  fixed_predictors <- names(covariates)
-}
-
-
-##  Full covariate set:
-x_data <- census_data@data[fixed_predictors]
-
-
-##	Convert to factors where appropriate:
-for (var_name in names(x_data)) {
-	if (grepl("cls", var_name, perl=T)) {
-		x_data[[var_name]] <- factor(x_data[[var_name]], levels=0:10, labels=as.character(0:10))
-	}
-}
-
-
-##	NOTE: Rarely this needs to be applied because of significatly strange
-##		relationships between proportion rural and other types of interactions
-##		resulting in odd partial plot relationships:
-##	Subset data to exclude all proportion covariates:
-
-###	Remove all proportion data:
-x_data <- x_data[,!grepl("prp", names(x_data))]
-##	Remove only proportion rural data:
-#x_data <- x_data[,!(names(x_data) == "lan_prp240")]
-
-###	Remove all class data:
-#x_data <- x_data[,!grepl("cls", names(x_data))]
-
-###	Remove rural/urban built data, leaving only BLT:
-x_data <- x_data[,!grepl("190", names(x_data))]
-x_data <- x_data[,!grepl("240", names(x_data))]
-
-###  Remove health facility data:
-#x_data <- x_data[,!grepl("^hea_", names(x_data))]
-
-###  Remove AfriAsiaPop gridx:
-#x_data <- x_data[,!(names(x_data) == "afr")]
-
-###  Remove elevation:
-#x_data <- x_data[,!(names(x_data) == "ele")]
-
-###  Remove NPP:
-#x_data <- x_data[,!(names(x_data) == "npp")]
-
-
-###	Remove all populated place data:
-#x_data <- x_data[,!grepl("pop", names(x_data))]
-
-###	Subset x_data columns to land cover alone:
-#x_data <- x_data[,c(1:28)]
-#x_data <- x_data[,grepl("lan_", names(x_data), perl=T)]
-
-###	Subset x_data to remove NAs:
-indexX <- complete.cases(x_data)
-
-
-##	Subset y_data to remove any of interest:
-#indexY <- y_data < 10 		##	Subset data to remove outliers...
-#indexY <- y_data < 100 	##	Subset data to remove outliers...
-indexY <- y_data > 0 			##	Subset to remove zeroes, good for 
-													##		log transformation, since it results 
-													##		in -Inf values...
-#indexY <- y_data > -1 		##	Don't subset data...
-#indexY <- y_data < transY(4, inverse=TRUE)
-
-
-##	Subset data according to indices:
-y_data <- y_data[indexX & indexY]
-x_data <- x_data[indexX & indexY,]
-
-
-##	Create a sampling factor that allows us to stratify our sample
-##		during randomForest estimation, that captures as many large 
-##		values as possible:
-##
-#y_sample <- as.factor(round((y_data/max(y_data)*10)))
-y_sample <- as.factor(1)
-
-
-##	Transform y_data (as defined in the transY() function:
-y_data <- transY(y_data)
-
-
-
-##	Random Forest regression of population density:
-set.seed(2002)
-
-##	Check our memory footprint just to make sure:
-memory.size()
-
-
-##	Now we are going tune our randomForest population density regression: 
-start_time = proc.time()[3]
-#init_popfit = tuneRF(x=x_data, y=y_data, plot=TRUE, mtryStart=length(x_data)/3, ntreeTry=length(y_data)/20, improve=0.0001, stepFactor=1.20, trace=TRUE, doBest=TRUE, nodesize=length(y_data)/1000, na.action=na.omit, importance=TRUE, proximity=FALSE, sampsize=length(y_data), replace=TRUE) 
-init_popfit = tuneRF(x=x_data, y=y_data, plot=TRUE, mtryStart=length(x_data)/3, ntreeTry=length(y_data)/20, improve=0.0001, stepFactor=1.20, trace=TRUE, doBest=TRUE, nodesize=length(y_data)/1000, na.action=na.omit, importance=TRUE, proximity=FALSE, sampsize=min(c(length(y_data), 1000)), replace=TRUE) 
-print(init_popfit)
-print(paste("Elapsed Fitting Time:", proc.time()[3] - start_time, "seconds"))
-
-
-##	Save off our init_popfit object for this set of data:
-save(init_popfit, file=paste(output_path_tmp, "init_popfit.RData", sep=""))
-#load(file=paste(output_path_tmp, "init_popfit.RData", sep=""))
-
-
-if (is.null(fixed_set)) {
-  ##	Now we will optimize the model by iteratively removing any 
-  ##		covariates with negative increases in node purity:
-  
-  ##	Get list of covariates that have an importance score greater than 0:
-  importance_scores <- importance(init_popfit)[order(importance(init_popfit)[,1], decreasing=TRUE),]
-  pos_importance <- rownames(importance_scores)[importance_scores[,1] > 0]
-  
-  while (length(pos_importance) < length(importance_scores[,1])) {
-  	##	Subset our x_data to just those columns having positive scores:
-  	x_data <- x_data[pos_importance]
-  	#popfit = tuneRF(x=x_data, y=y_data, plot=TRUE, mtryStart=length(x_data)/3, ntreeTry=length(y_data)/20, improve=0.0001, stepFactor=1.20, trace=TRUE, doBest=TRUE, nodesize=length(y_data)/1000, na.action=na.omit, importance=TRUE, proximity=FALSE, sampsize=length(y_data), replace=TRUE) 
-  	popfit = tuneRF(x=x_data, y=y_data, plot=TRUE, mtryStart=length(x_data)/3, ntreeTry=length(y_data)/20, improve=0.0001, stepFactor=1.20, trace=TRUE, doBest=TRUE, nodesize=length(y_data)/1000, na.action=na.omit, importance=TRUE, proximity=FALSE, sampsize=min(c(length(y_data), 1000)), replace=TRUE) 
-  	
-  	##	Re-check importance scores:
-  	importance_scores <- importance(popfit)[order(importance(popfit)[,1], decreasing=TRUE),]
-  	pos_importance <- rownames(importance_scores)[importance_scores[,1] > 0]
-  	print(popfit)
-  }
-  print(paste("Elapsed Fitting Time:", proc.time()[3] - start_time, "seconds"))
-
-} else {
-
-  popfit = randomForest(x=x_data, y=y_data, mtry=popfit_final_old$mtry, ntree=popfit_final_old$ntree, nodesize=length(y_data)/1000, importance=TRUE, proximity=TRUE)
-  print(popfit)
-  
-}
-
-##	Save off our popfit object for this set of data:
-save(popfit, file=paste(output_path_tmp, "popfit.RData", sep=""))
-#load(file=paste(output_path_tmp, "popfit.RData", sep=""))
-
-
-###	Check our diagnostics:
-###	Recall that running predict on the randomForest object will return OOB predictions:
-#
-#summary(popfit)
-#plot(popfit)
-#
-#predict(popfit)
-#importance(popfit)
-#
-###	Get the variable names of the top 20 predictors:
-#names(importance(popfit)[,"%IncMSE"][order(importance(popfit)[,"%IncMSE"], decreasing=TRUE)])[1:20]
-#
-###	Sort all covariates by they $IncMSE:
-#importance(popfit)[order(importance(popfit)[,1], decreasing=TRUE),]
-
-
-#varImpPlot(popfit)
-#varUsed(popfit)
-#summary(treesize(popfit))
-#plot(popfit)
-
-# ##	Partial Plots:
-# for (var_name in names(x_data)) {
-# 	eval( parse( text=
-# 		paste(
-# 			"partialPlot(x=popfit, pred.data=x_data, x.var=\"",
-# 			as.character(var_name),
-# 			"\")"
-# 		, sep="")
-# 	))
-# }
-
-
-##	For continuous regression, plot observed vs. predicted:
-plot(x=y_data, y=predict(popfit), ylim=c(min(y_data),max(y_data)), xlim=c(min(y_data),max(y_data)))
-abline(a=0, b=1, lty=2)
-
-###	For continuous regression, plot residuals vs. observed:
-#plot(x=y_data, y=(y_data - predict(popfit)), xlim=c(0,max(y_data)))
-#abline(a=0, b=0, lty=2)
-#
-###	For continuous regression, plot residuals vs. fitted:
-#plot(x=predict(popfit), y=(y_data - predict(popfit)), xlim=c(0,max(y_data)))
-#abline(a=0, b=0, lty=2)
-
-varImpPlot(popfit)
-
-
-###	Note that the predict(popfit) give predictions using OOB estimates
-###		that are stored along with the randomForest object.  If we want
-###		predictions from the non-OOB estimates we can run predict() using 
-###		the existing x_data as the newdata= object.  This will also allow
-###		us to extract the SD of the estimates from all forests, giving us
-###		a pseudo-prediction uncertainty for each object/pixel we predict:
-#x_data_new <- as.data.frame(census_data[names(popfit$forest$xlevels)])
-#
-###	Convert to factors where appropriate:
-#for (var_name in names(x_data_new)) {
-#	if (grepl("cls", var_name, perl=T)) {
-#		x_data_new[[var_name]] <- factor(x_data_new[[var_name]], levels=0:10, labels=as.character(0:10))
-#	}
-#}
-#
-#predictions <- predict(popfit, newdata=x_data_new, predict.all=TRUE)
-#
-###	The wrinkle is that these predictions are the mean of the 
-###		non-backtransformed predictions from each of the trees in the
-###		forest.  This is problematic since the back-transform of the mean
-###		is not the same as the mean of the back-transformed predictions, 
-###		but this is probably what we want because taking the mean or SD
-###		of the back-transformed values predicted by each tree is difficult 
-###		to rationalize and based on some preliminary testing actually fits
-###		the aggregated data worse than taking the mean of the individual
-###		tree predictions and backtransforming the mean to use as the 
-###		predicted value.
-#
-###	Untransformed mean of predictions for first census unit:
-#predictions$aggregate[1]
-###		is the same as:
-#mean(predictions$individual[1,])
-###		However, since we are trying to get the value from a transformed
-###		response variable, these are equivalent:
-#transY(predictions$aggregate[1], inverse=TRUE)
-#transY(mean(predictions$individual[1,]), inverse=TRUE)
-###		But not to this (which is not as accurate for approximately log-normal
-###			variables, so we'll stick with the first way):
-##mean(transY(predictions$individual[1,], inverse=TRUE))
-#
-###	To generate mean and CV for predictions across all forests for each unit:
-##census_data$rf_pred <- apply(transY(predictions$individual, inverse=TRUE), MARGIN=1, mean)
-###		is not equivalent to, and a more biased way than the back 
-###		transformation of the mean of the predictions, which is actually 
-###		the median of a log-normal backtransformed prediction distribution, 
-###		which is probably what we really want given that it's more accurate:
-#census_data$rf_pred <- transY( apply(predictions$individual, MARGIN=1, mean), inverse=TRUE)
-#
-###	Calculate residuals:
-#census_data$rf_res <- census_data[["POPD_PPHA"]] - census_data[["rf_pred"]]
-#
-###	This is completely wrong for a non-linear, log transformation, as 
-###		the back-transform of the SD of the non-back-transformed predictions 
-###		is meaningless:
-##census_data$rf_sd <- transY(apply(predictions$individual, MARGIN=1, sd), inverse=TRUE)
-###		So instead we could back-transform and then calculate the SD:
-##census_data$rf_sd <- apply(transY(predictions$individual, inverse=TRUE), MARGIN=1, sd)
-##census_data$rf_cv <- (census_data[["rf_sd"]] / census_data[["rf_pred"]]) * 100
-###			but the problem here is that the SD or CV for a highly skewed, log-
-###			normal distribution is not a useful measure of dispersion.  So
-###			instead we'll just calculate the SD of the log transformed 
-###			predictions, and the CV of that value:
-#census_data$rf_sd <- apply(predictions$individual, MARGIN=1, sd)
-#
-###		NOTE: The CV of a log normal distribution is not calculated as the
-###			SD/Mean, because the distribution is not ratio-scale.  Therefore 
-###			this is INCORRECT:
-##census_data$rf_cv <- apply(predictions$individual, MARGIN=1, sd) / apply(predictions$individual, MARGIN=1, mean)
-###			And this does not have any meaning on the interval scale so we 
-###			have to use the CV on the original scale using this relationship:
-###				(http://www.stata.com/statalist/archive/2003-06/msg00508.html)
-#census_data$rf_cv <- sqrt(exp( (apply(predictions$individual, MARGIN=1, sd))^2 ) - 1)
-###		Or alternatively, could calculate the "Geometric CV", but this seems
-###			to be frowned on (ala Wikipedia's entry on CV):
-###			(http://www.sportsci.org/resource/stats/logtrans.html)
-##census_data$rf_cv <- exp( apply(predictions$individual, MARGIN=1, sd) ) - 1
-#
-###	Plot means and CV for each census unit, with no border (col=NA) around
-###		polygons:
-#spplot(census_data, zcol=c("POPD_PPHA"), col=NA)
-#spplot(census_data, zcol=c("rf_pred"), col=NA)
-#spplot(census_data, zcol=c("rf_res"), col=NA)
-#spplot(census_data, zcol=c("rf_sd"), col=NA)
-#spplot(census_data, zcol=c("rf_cv"), col=NA)
-
-
-##	Another alternative is to use Quantile Regression Forests to generate
-##		prediction intervals.  We'll fit a quantile regression using
-##		the tuning parameters pulled from the popfit object above:
-set.seed(2010)
-popfit_final = randomForest(x=x_data, y=y_data, mtry=popfit$mtry, ntree=popfit$ntree, nodesize=length(y_data)/1000, importance=TRUE, proximity=TRUE)
-set.seed(2010)
-popfit_quant = quantregForest(x=x_data, y=y_data, mtry=popfit$mtry, ntree=popfit$ntree, nodesize=length(y_data)/1000)
-
-#popfit_quant
-#plot(popfit_quant)
-#varImpPlot(popfit_quant)
-#mean(popfit_quant$rsq)
-#popfit_final
-#
-###	Plot predicted mean log(density) to observed (standard behavior of 
-###		randomForest):
-#plot(x=y_data, y=predict(popfit_final), ylim=c(min(y_data),max(y_data)), xlim=c(min(y_data),max(y_data)))
-#abline(a=0, b=1, lty=2)
-#
-###	Plot predicted median log(density) to observed:
-#plot(x=y_data, y=predict(popfit_quant)[,2], ylim=c(min(y_data),max(y_data)), xlim=c(min(y_data),max(y_data)))
-#abline(a=0, b=1, lty=2)
-#
-###	Compares the means and medians of our predictions (remember these are log transformed):
-#plot(x=predict(popfit_final), y=predict(popfit_quant)[,2], ylim=c(min(y_data),max(y_data)), xlim=c(min(y_data),max(y_data)))
-#abline(a=0, b=1, lty=2)
-#
-#randomForest:::print.randomForest(popfit_quant)
-#
-###	Generate predicted values for new data and their 5% and 95% quantiles:
-#predict(popfit_quant, newdata=x_data)
-#
-###	Predict our median and 90% lower and upper quantiles:
-#predict(popfit_quant, newdata=x_data, quantiles=c(.05,0.5,.95))
-
-##	Save off our popfit object for this set of data:
-save(popfit_final, file=paste(output_path_tmp, "popfit_final.RData", sep=""))
-#load(file=paste(output_path_tmp, "popfit_final.RData", sep=""))
-save(popfit_quant, file=paste(output_path_tmp, "popfit_quant.RData", sep=""))
-#load(file=paste(output_path_tmp, "popfit_quant.RData", sep=""))
-
-
-##########
-## Set the fixed_set to existing countries if you are using an existing
-##    set of randomForest objects to predict from:
-if (!is.null(fixed_set)) {
-	if ((length(fixed_set) != 1) | !(country %in% fixed_set)) {
-		##	Check to see if the country we are processing is included in our 
-		##		fixed_set and if it is not then pull the first country from
-		##		the set to use as our starting RF model to combine with:
-		if (country %in% fixed_set) {
-			index <- 1
-
-			popfit_final_combined <- popfit_final
-			popfit_quant_combined <- popfit_quant
-		} else {
-			index <- 2
-			
-			country_old <- fixed_set[1] 
-			output_path_tmp <- paste(root_path, "/output/", country_old, "/tmp/", sep="")
-			load(file=paste(output_path_tmp, "popfit_final.RData", sep=""))
-			popfit_final_combined <- popfit_final
-			load(file=paste(output_path_tmp, "popfit_quant.RData", sep=""))
-			popfit_quant_combined <- popfit_quant
-		}
-
-		while (index <= length(fixed_set)) {
-			## Load randomForest objects to combine:
-			country_old <- fixed_set[index] 
-
-			if (country_old != country) {
-				output_path_tmp <- paste(root_path, "/output/", country_old, "/tmp/", sep="")
-				load(file=paste(output_path_tmp, "popfit_final.RData", sep=""))
-				popfit_final_old <- popfit_final
-				load(file=paste(output_path_tmp, "popfit_quant.RData", sep=""))
-				popfit_quant_old <- popfit_quant
-
-				##	NOTE: There seems to be a bug combining forests for models
-				##		based on different numbers of observations.  Therefore, to
-				##		get this to work correctly, we're going to set the proximity
-				##		and predicted attributes to NULL and 0 respectively before
-				##		combining:
-				popfit_final_combined$proximity <- NULL
-        popfit_final_combined$predicted <- 0
-        popfit_final_old$proximity <- NULL
-        popfit_final_old$predicted <- 0
-				
-        popfit_quant_combined$predicted <- 0
-        popfit_quant_old$predicted <- 0
-				
-				popfit_final_combined <- combine(popfit_final_combined, popfit_final_old)
-        popfit_quant_combined <- combine(popfit_quant_combined, popfit_quant_old)
-			}
-			
-			index <- index + 1
-		}
+	if (!is.null(fixed_set)) {
+		country_old <- fixed_set[1]
+		output_path_tmp <- paste(root_path, "/output/", country_old, "/tmp/", sep="")
 		
-		popfit_final <- popfit_final_combined
-		popfit_quant <- popfit_quant_combined
+		##	Load the first listed, existing country and rename its popfit_final:
+		load(file=paste(output_path_tmp, "popfit_final.RData", sep=""))
+		popfit_final_old <- popfit_final
+
+		fixed_predictors <- row.names(importance(popfit_final_old))
 		
 		output_path_tmp <- paste(root_path, "/output/", country, "/tmp/", sep="")
-		
-		##  Save off our popfit object for this set of data:
-		save(popfit_final, file=paste(output_path_tmp, "popfit_final_combined.RData", sep=""))
-		#load(file=paste(output_path_tmp, "popfit_final_combined.RData", sep=""))
-		save(popfit_quant, file=paste(output_path_tmp, "popfit_quant_combined.RData", sep=""))
-		#load(file=paste(output_path_tmp, "popfit_quant_combined.RData", sep=""))
+	} else {
+		fixed_predictors <- names(covariates)
 	}
+
+
+	##  Full covariate set:
+	x_data <- census_data@data[fixed_predictors]
+
+
+	##	Convert to factors where appropriate:
+	for (var_name in names(x_data)) {
+		if (grepl("cls", var_name, perl=T)) {
+			x_data[[var_name]] <- factor(x_data[[var_name]], levels=0:10, labels=as.character(0:10))
+		}
+	}
+
+
+	##	NOTE: Rarely this needs to be applied because of significatly strange
+	##		relationships between proportion rural and other types of interactions
+	##		resulting in odd partial plot relationships:
+	##	Subset data to exclude all proportion covariates:
+
+	###	Remove all proportion data:
+	x_data <- x_data[,!grepl("prp", names(x_data))]
+	##	Remove only proportion rural data:
+	#x_data <- x_data[,!(names(x_data) == "lan_prp240")]
+
+	###	Remove all class data:
+	#x_data <- x_data[,!grepl("cls", names(x_data))]
+
+	###	Remove rural/urban built data, leaving only BLT:
+	x_data <- x_data[,!grepl("190", names(x_data))]
+	x_data <- x_data[,!grepl("240", names(x_data))]
+
+	###  Remove health facility data:
+	#x_data <- x_data[,!grepl("^hea_", names(x_data))]
+
+	###  Remove AfriAsiaPop gridx:
+	#x_data <- x_data[,!(names(x_data) == "afr")]
+
+	###  Remove elevation:
+	#x_data <- x_data[,!(names(x_data) == "ele")]
+
+	###  Remove NPP:
+	#x_data <- x_data[,!(names(x_data) == "npp")]
+
+
+	###	Remove all populated place data:
+	#x_data <- x_data[,!grepl("pop", names(x_data))]
+
+	###	Subset x_data columns to land cover alone:
+	#x_data <- x_data[,c(1:28)]
+	#x_data <- x_data[,grepl("lan_", names(x_data), perl=T)]
+
+	###	Subset x_data to remove NAs:
+	indexX <- complete.cases(x_data)
+
+
+	##	Subset y_data to remove any of interest:
+	#indexY <- y_data < 10 		##	Subset data to remove outliers...
+	#indexY <- y_data < 100 	##	Subset data to remove outliers...
+	indexY <- y_data > 0 			##	Subset to remove zeroes, good for 
+														##		log transformation, since it results 
+														##		in -Inf values...
+	#indexY <- y_data > -1 		##	Don't subset data...
+	#indexY <- y_data < transY(4, inverse=TRUE)
+
+
+	##	Subset data according to indices:
+	y_data <- y_data[indexX & indexY]
+	x_data <- x_data[indexX & indexY,]
+
+
+	##	Create a sampling factor that allows us to stratify our sample
+	##		during randomForest estimation, that captures as many large 
+	##		values as possible:
+	##
+	#y_sample <- as.factor(round((y_data/max(y_data)*10)))
+	y_sample <- as.factor(1)
+
+
+	##	Transform y_data (as defined in the transY() function:
+	y_data <- transY(y_data)
+
+
+	##	Random Forest regression of population density:
+	set.seed(2002)
+
+	##	Check our memory footprint just to make sure:
+	memory.size()
+
+
+	##	Now we are going tune our randomForest population density regression: 
+	start_time = proc.time()[3]
+	#init_popfit = tuneRF(x=x_data, y=y_data, plot=TRUE, mtryStart=length(x_data)/3, ntreeTry=length(y_data)/20, improve=0.0001, stepFactor=1.20, trace=TRUE, doBest=TRUE, nodesize=length(y_data)/1000, na.action=na.omit, importance=TRUE, proximity=FALSE, sampsize=length(y_data), replace=TRUE) 
+	init_popfit = tuneRF(x=x_data, y=y_data, plot=TRUE, mtryStart=length(x_data)/3, ntreeTry=length(y_data)/20, improve=0.0001, stepFactor=1.20, trace=TRUE, doBest=TRUE, nodesize=length(y_data)/1000, na.action=na.omit, importance=TRUE, proximity=FALSE, sampsize=min(c(length(y_data), 1000)), replace=TRUE) 
+	print(init_popfit)
+	print(paste("Elapsed Fitting Time:", proc.time()[3] - start_time, "seconds"))
+
+
+	##	Save off our init_popfit object for this set of data:
+	save(init_popfit, file=paste(output_path_tmp, "init_popfit.RData", sep=""))
+	#load(file=paste(output_path_tmp, "init_popfit.RData", sep=""))
+
+
+	if (is.null(fixed_set)) {
+		##	Now we will optimize the model by iteratively removing any 
+		##		covariates with negative increases in node purity:
+		
+		##	Get list of covariates that have an importance score greater than 0:
+		importance_scores <- importance(init_popfit)[order(importance(init_popfit)[,1], decreasing=TRUE),]
+		pos_importance <- rownames(importance_scores)[importance_scores[,1] > 0]
+		
+		while (length(pos_importance) < length(importance_scores[,1])) {
+			##	Subset our x_data to just those columns having positive scores:
+			x_data <- x_data[pos_importance]
+			#popfit = tuneRF(x=x_data, y=y_data, plot=TRUE, mtryStart=length(x_data)/3, ntreeTry=length(y_data)/20, improve=0.0001, stepFactor=1.20, trace=TRUE, doBest=TRUE, nodesize=length(y_data)/1000, na.action=na.omit, importance=TRUE, proximity=FALSE, sampsize=length(y_data), replace=TRUE) 
+			popfit = tuneRF(x=x_data, y=y_data, plot=TRUE, mtryStart=length(x_data)/3, ntreeTry=length(y_data)/20, improve=0.0001, stepFactor=1.20, trace=TRUE, doBest=TRUE, nodesize=length(y_data)/1000, na.action=na.omit, importance=TRUE, proximity=FALSE, sampsize=min(c(length(y_data), 1000)), replace=TRUE) 
+			
+			##	Re-check importance scores:
+			importance_scores <- importance(popfit)[order(importance(popfit)[,1], decreasing=TRUE),]
+			pos_importance <- rownames(importance_scores)[importance_scores[,1] > 0]
+			print(popfit)
+		}
+		print(paste("Elapsed Fitting Time:", proc.time()[3] - start_time, "seconds"))
+
+	} else {
+
+		popfit = randomForest(x=x_data, y=y_data, mtry=popfit_final_old$mtry, ntree=popfit_final_old$ntree, nodesize=length(y_data)/1000, importance=TRUE, proximity=TRUE)
+		print(popfit)
+		
+	}
+
+	##	Save off our popfit object for this set of data:
+	save(popfit, file=paste(output_path_tmp, "popfit.RData", sep=""))
+	#load(file=paste(output_path_tmp, "popfit.RData", sep=""))
+
+
+	###	Check our diagnostics:
+	###	Recall that running predict on the randomForest object will return OOB predictions:
+	#
+	#summary(popfit)
+	#plot(popfit)
+	#
+	#predict(popfit)
+	#importance(popfit)
+	#
+	###	Get the variable names of the top 20 predictors:
+	#names(importance(popfit)[,"%IncMSE"][order(importance(popfit)[,"%IncMSE"], decreasing=TRUE)])[1:20]
+	#
+	###	Sort all covariates by they $IncMSE:
+	#importance(popfit)[order(importance(popfit)[,1], decreasing=TRUE),]
+
+
+	#varImpPlot(popfit)
+	#varUsed(popfit)
+	#summary(treesize(popfit))
+	#plot(popfit)
+
+	# ##	Partial Plots:
+	# for (var_name in names(x_data)) {
+	# 	eval( parse( text=
+	# 		paste(
+	# 			"partialPlot(x=popfit, pred.data=x_data, x.var=\"",
+	# 			as.character(var_name),
+	# 			"\")"
+	# 		, sep="")
+	# 	))
+	# }
+
+
+	##	For continuous regression, plot observed vs. predicted:
+	plot(x=y_data, y=predict(popfit), ylim=c(min(y_data),max(y_data)), xlim=c(min(y_data),max(y_data)))
+	abline(a=0, b=1, lty=2)
+
+	###	For continuous regression, plot residuals vs. observed:
+	#plot(x=y_data, y=(y_data - predict(popfit)), xlim=c(0,max(y_data)))
+	#abline(a=0, b=0, lty=2)
+	#
+	###	For continuous regression, plot residuals vs. fitted:
+	#plot(x=predict(popfit), y=(y_data - predict(popfit)), xlim=c(0,max(y_data)))
+	#abline(a=0, b=0, lty=2)
+
+	varImpPlot(popfit)
+
+
+	###	Note that the predict(popfit) give predictions using OOB estimates
+	###		that are stored along with the randomForest object.  If we want
+	###		predictions from the non-OOB estimates we can run predict() using 
+	###		the existing x_data as the newdata= object.  This will also allow
+	###		us to extract the SD of the estimates from all forests, giving us
+	###		a pseudo-prediction uncertainty for each object/pixel we predict:
+	#x_data_new <- as.data.frame(census_data[names(popfit$forest$xlevels)])
+	#
+	###	Convert to factors where appropriate:
+	#for (var_name in names(x_data_new)) {
+	#	if (grepl("cls", var_name, perl=T)) {
+	#		x_data_new[[var_name]] <- factor(x_data_new[[var_name]], levels=0:10, labels=as.character(0:10))
+	#	}
+	#}
+	#
+	#predictions <- predict(popfit, newdata=x_data_new, predict.all=TRUE)
+	#
+	###	The wrinkle is that these predictions are the mean of the 
+	###		non-backtransformed predictions from each of the trees in the
+	###		forest.  This is problematic since the back-transform of the mean
+	###		is not the same as the mean of the back-transformed predictions, 
+	###		but this is probably what we want because taking the mean or SD
+	###		of the back-transformed values predicted by each tree is difficult 
+	###		to rationalize and based on some preliminary testing actually fits
+	###		the aggregated data worse than taking the mean of the individual
+	###		tree predictions and backtransforming the mean to use as the 
+	###		predicted value.
+	#
+	###	Untransformed mean of predictions for first census unit:
+	#predictions$aggregate[1]
+	###		is the same as:
+	#mean(predictions$individual[1,])
+	###		However, since we are trying to get the value from a transformed
+	###		response variable, these are equivalent:
+	#transY(predictions$aggregate[1], inverse=TRUE)
+	#transY(mean(predictions$individual[1,]), inverse=TRUE)
+	###		But not to this (which is not as accurate for approximately log-normal
+	###			variables, so we'll stick with the first way):
+	##mean(transY(predictions$individual[1,], inverse=TRUE))
+	#
+	###	To generate mean and CV for predictions across all forests for each unit:
+	##census_data$rf_pred <- apply(transY(predictions$individual, inverse=TRUE), MARGIN=1, mean)
+	###		is not equivalent to, and a more biased way than the back 
+	###		transformation of the mean of the predictions, which is actually 
+	###		the median of a log-normal backtransformed prediction distribution, 
+	###		which is probably what we really want given that it's more accurate:
+	#census_data$rf_pred <- transY( apply(predictions$individual, MARGIN=1, mean), inverse=TRUE)
+	#
+	###	Calculate residuals:
+	#census_data$rf_res <- census_data[["POPD_PPHA"]] - census_data[["rf_pred"]]
+	#
+	###	This is completely wrong for a non-linear, log transformation, as 
+	###		the back-transform of the SD of the non-back-transformed predictions 
+	###		is meaningless:
+	##census_data$rf_sd <- transY(apply(predictions$individual, MARGIN=1, sd), inverse=TRUE)
+	###		So instead we could back-transform and then calculate the SD:
+	##census_data$rf_sd <- apply(transY(predictions$individual, inverse=TRUE), MARGIN=1, sd)
+	##census_data$rf_cv <- (census_data[["rf_sd"]] / census_data[["rf_pred"]]) * 100
+	###			but the problem here is that the SD or CV for a highly skewed, log-
+	###			normal distribution is not a useful measure of dispersion.  So
+	###			instead we'll just calculate the SD of the log transformed 
+	###			predictions, and the CV of that value:
+	#census_data$rf_sd <- apply(predictions$individual, MARGIN=1, sd)
+	#
+	###		NOTE: The CV of a log normal distribution is not calculated as the
+	###			SD/Mean, because the distribution is not ratio-scale.  Therefore 
+	###			this is INCORRECT:
+	##census_data$rf_cv <- apply(predictions$individual, MARGIN=1, sd) / apply(predictions$individual, MARGIN=1, mean)
+	###			And this does not have any meaning on the interval scale so we 
+	###			have to use the CV on the original scale using this relationship:
+	###				(http://www.stata.com/statalist/archive/2003-06/msg00508.html)
+	#census_data$rf_cv <- sqrt(exp( (apply(predictions$individual, MARGIN=1, sd))^2 ) - 1)
+	###		Or alternatively, could calculate the "Geometric CV", but this seems
+	###			to be frowned on (ala Wikipedia's entry on CV):
+	###			(http://www.sportsci.org/resource/stats/logtrans.html)
+	##census_data$rf_cv <- exp( apply(predictions$individual, MARGIN=1, sd) ) - 1
+	#
+	###	Plot means and CV for each census unit, with no border (col=NA) around
+	###		polygons:
+	#spplot(census_data, zcol=c("POPD_PPHA"), col=NA)
+	#spplot(census_data, zcol=c("rf_pred"), col=NA)
+	#spplot(census_data, zcol=c("rf_res"), col=NA)
+	#spplot(census_data, zcol=c("rf_sd"), col=NA)
+	#spplot(census_data, zcol=c("rf_cv"), col=NA)
+
+
+	##	Another alternative is to use Quantile Regression Forests to generate
+	##		prediction intervals.  We'll fit a quantile regression using
+	##		the tuning parameters pulled from the popfit object above:
+	set.seed(2010)
+	popfit_final = randomForest(x=x_data, y=y_data, mtry=popfit$mtry, ntree=popfit$ntree, nodesize=length(y_data)/1000, importance=TRUE, proximity=TRUE)
+	set.seed(2010)
+	popfit_quant = quantregForest(x=x_data, y=y_data, mtry=popfit$mtry, ntree=popfit$ntree, nodesize=length(y_data)/1000)
+
+	#popfit_quant
+	#plot(popfit_quant)
+	#varImpPlot(popfit_quant)
+	#mean(popfit_quant$rsq)
+	#popfit_final
+	#
+	###	Plot predicted mean log(density) to observed (standard behavior of 
+	###		randomForest):
+	#plot(x=y_data, y=predict(popfit_final), ylim=c(min(y_data),max(y_data)), xlim=c(min(y_data),max(y_data)))
+	#abline(a=0, b=1, lty=2)
+	#
+	###	Plot predicted median log(density) to observed:
+	#plot(x=y_data, y=predict(popfit_quant)[,2], ylim=c(min(y_data),max(y_data)), xlim=c(min(y_data),max(y_data)))
+	#abline(a=0, b=1, lty=2)
+	#
+	###	Compares the means and medians of our predictions (remember these are log transformed):
+	#plot(x=predict(popfit_final), y=predict(popfit_quant)[,2], ylim=c(min(y_data),max(y_data)), xlim=c(min(y_data),max(y_data)))
+	#abline(a=0, b=1, lty=2)
+	#
+	#randomForest:::print.randomForest(popfit_quant)
+	#
+	###	Generate predicted values for new data and their 5% and 95% quantiles:
+	#predict(popfit_quant, newdata=x_data)
+	#
+	###	Predict our median and 90% lower and upper quantiles:
+	#predict(popfit_quant, newdata=x_data, quantiles=c(.05,0.5,.95))
+
+	##	Save off our popfit object for this set of data:
+	save(popfit_final, file=paste(output_path_tmp, "popfit_final.RData", sep=""))
+	#load(file=paste(output_path_tmp, "popfit_final.RData", sep=""))
+	save(popfit_quant, file=paste(output_path_tmp, "popfit_quant.RData", sep=""))
+	#load(file=paste(output_path_tmp, "popfit_quant.RData", sep=""))
+
+
+	##########
+	## Set the fixed_set to existing countries if you are using an existing
+	##    set of randomForest objects to predict from:
+	if (!is.null(fixed_set)) {
+		if ((length(fixed_set) != 1) | !(country %in% fixed_set)) {
+			##	Check to see if the country we are processing is included in our 
+			##		fixed_set and if it is not then pull the first country from
+			##		the set to use as our starting RF model to combine with:
+			if (country %in% fixed_set) {
+				index <- 1
+
+				popfit_final_combined <- popfit_final
+				popfit_quant_combined <- popfit_quant
+			} else {
+				index <- 2
+				
+				country_old <- fixed_set[1] 
+				output_path_tmp <- paste(root_path, "/output/", country_old, "/tmp/", sep="")
+				load(file=paste(output_path_tmp, "popfit_final.RData", sep=""))
+				popfit_final_combined <- popfit_final
+				load(file=paste(output_path_tmp, "popfit_quant.RData", sep=""))
+				popfit_quant_combined <- popfit_quant
+			}
+
+			while (index <= length(fixed_set)) {
+				## Load randomForest objects to combine:
+				country_old <- fixed_set[index] 
+
+				if (country_old != country) {
+					output_path_tmp <- paste(root_path, "/output/", country_old, "/tmp/", sep="")
+					load(file=paste(output_path_tmp, "popfit_final.RData", sep=""))
+					popfit_final_old <- popfit_final
+					load(file=paste(output_path_tmp, "popfit_quant.RData", sep=""))
+					popfit_quant_old <- popfit_quant
+
+					##	NOTE: There seems to be a bug combining forests for models
+					##		based on different numbers of observations.  Therefore, to
+					##		get this to work correctly, we're going to set the proximity
+					##		and predicted attributes to NULL and 0 respectively before
+					##		combining:
+					popfit_final_combined$proximity <- NULL
+					popfit_final_combined$predicted <- 0
+					popfit_final_old$proximity <- NULL
+					popfit_final_old$predicted <- 0
+					
+					popfit_quant_combined$predicted <- 0
+					popfit_quant_old$predicted <- 0
+					
+					popfit_final_combined <- combine(popfit_final_combined, popfit_final_old)
+					popfit_quant_combined <- combine(popfit_quant_combined, popfit_quant_old)
+				}
+				
+				index <- index + 1
+			}
+			
+			popfit_final <- popfit_final_combined
+			popfit_quant <- popfit_quant_combined
+			
+			output_path_tmp <- paste(root_path, "/output/", country, "/tmp/", sep="")
+			
+			##  Save off our popfit object for this set of data:
+			save(popfit_final, file=paste(output_path_tmp, "popfit_final_combined.RData", sep=""))
+			#load(file=paste(output_path_tmp, "popfit_final_combined.RData", sep=""))
+			save(popfit_quant, file=paste(output_path_tmp, "popfit_quant_combined.RData", sep=""))
+			#load(file=paste(output_path_tmp, "popfit_quant_combined.RData", sep=""))
+		}
+	}
+
+} else {
+
+	##	We have skipped the entire RF estimation and/or combination code,
+	##		so to continue the popfit objects must already be in the output
+	##		temporary folder:
+	load(file=paste(output_path_tmp, "popfit_final.RData", sep=""))
+	load(file=paste(output_path_tmp, "popfit_quant.RData", sep=""))
+
 }
+
+
+##	Last, to save on memory we don't have any need for the proximity 
+##		matrix for prediction purposes, and for census data with many, many
+##		units this proximity matrix can be extremely large.  We remove it
+##		here from the popfit_final object since this object will be 
+##		duplicated across nodes of the cluster.  If you need it it is saved
+##		with the object and can be load() from disk:
+popfit_final$proximity <- NULL
 
 ##	END:	Estimate RandomForest model
 #####
@@ -858,22 +898,22 @@ cluster_predict <- function(prediction_raster, quant_output=FALSE, ...) {
 	##		come back from our cluster:
 	setwd(output_path)
 	
-	prediction_raster <- writeStart(prediction_raster, filename="predict_density.tif", format="GTiff", datatype="FLT4S", overwrite=TRUE, options=c("COMPRESS=LZW"))
+	prediction_raster <- writeStart(prediction_raster, filename=paste0("predict_density", piece_text, ".tif"), format="GTiff", datatype="FLT4S", overwrite=TRUE, options=c("COMPRESS=LZW"))
 	
 	#prediction_raster_alt <- prediction_raster
-	#prediction_raster_alt <- writeStart(prediction_raster_alt, filename="predict_density_alt.tif", format="GTiff", datatype="FLT4S", overwrite=TRUE, options=c("COMPRESS=LZW"))
+	#prediction_raster_alt <- writeStart(prediction_raster_alt, filename=paste0("predict_density_alt", piece_text, ".tif"), format="GTiff", datatype="FLT4S", overwrite=TRUE, options=c("COMPRESS=LZW"))
 	sd_raster <- prediction_raster
-	sd_raster <- writeStart(sd_raster, filename="predict_density_sd.tif", format="GTiff", datatype="FLT4S", overwrite=TRUE, options=c("COMPRESS=LZW"))
+	sd_raster <- writeStart(sd_raster, filename=paste0("predict_density_sd", piece_text, ".tif"), format="GTiff", datatype="FLT4S", overwrite=TRUE, options=c("COMPRESS=LZW"))
 	#cv_raster <- prediction_raster
-	#cv_raster <- writeStart(cv_raster, filename="predict_density_cv.tif", format="GTiff", datatype="FLT4S", overwrite=TRUE, options=c("COMPRESS=LZW"))
+	#cv_raster <- writeStart(cv_raster, filename=paste0("predict_density_cv", piece_text, ".tif"), format="GTiff", datatype="FLT4S", overwrite=TRUE, options=c("COMPRESS=LZW"))
 
   if (quant_output) {
   	prediction_raster_05 <- prediction_raster
-  	prediction_raster_05 <- writeStart(prediction_raster_05, filename="predict_density_05.tif", format="GTiff", datatype="FLT4S", overwrite=TRUE, options=c("COMPRESS=LZW"))
+  	prediction_raster_05 <- writeStart(prediction_raster_05, filename=paste0("predict_density_05", piece_text, ".tif"), format="GTiff", datatype="FLT4S", overwrite=TRUE, options=c("COMPRESS=LZW"))
   	prediction_raster_50 <- prediction_raster
-  	prediction_raster_50 <- writeStart(prediction_raster_50, filename="predict_density_50.tif", format="GTiff", datatype="FLT4S", overwrite=TRUE, options=c("COMPRESS=LZW"))
+  	prediction_raster_50 <- writeStart(prediction_raster_50, filename=paste0("predict_density_50", piece_text, ".tif"), format="GTiff", datatype="FLT4S", overwrite=TRUE, options=c("COMPRESS=LZW"))
   	prediction_raster_95 <- prediction_raster
-  	prediction_raster_95 <- writeStart(prediction_raster_95, filename="predict_density_95.tif", format="GTiff", datatype="FLT4S", overwrite=TRUE, options=c("COMPRESS=LZW"))
+  	prediction_raster_95 <- writeStart(prediction_raster_95, filename=paste0("predict_density_95", piece_text, ".tif"), format="GTiff", datatype="FLT4S", overwrite=TRUE, options=c("COMPRESS=LZW"))
   }
 
 	##	Create our primary cluster processing loop, recalling that we already
@@ -948,6 +988,25 @@ my_extent <- extent(zonal_raster)
 #plot(zonal_raster, ext=my_extent)
 
 
+##	This block can be used to process subsets, especially if you're running
+##		up against memory limits (leave piece_text defined as empty for 
+##		file naming purposes):
+piece_text <- ""
+
+#piece <- 1
+#num_pieces <- 16
+#rows_per_piece <- floor(nrow(zonal_raster)/num_pieces)
+#
+#begin_row <- (piece - 1)*rows_per_piece + 1
+#if (piece == num_pieces) {
+#	end_row <- nrow(zonal_raster)
+#} else {
+#	end_row <- (piece*rows_per_piece)
+#}
+#piece_text <- paste0("_sub", piece)
+#my_extent <- extent(zonal_raster, begin_row, end_row, 1, ncol(zonal_raster))
+
+
 ##	Create a zone-based raster that will be used as in/out of census block
 ##		mask:
 #census_mask <- crop( zonal_raster, my_extent )
@@ -960,6 +1019,7 @@ census_buffer_path <- paste(project_path, "Census/Derived", sep="")
 census_buffer <- readOGR(dsn=census_buffer_path, layer="census_buffer")
 census_mask <- rasterize(census_buffer, zonal_raster)
 census_mask <- crop( census_mask, my_extent )
+#plot(census_mask)
 
 ##	Re-set the extent based on the sometimes slightly different extent
 ##		post-cropping:
@@ -970,7 +1030,7 @@ my_extent <- extent(census_mask)
 ##		Small inconsistencies can arrive as a product of the ArcGIS 
 ##		processing so this is a necessary step otherwise the stacking process
 ##		will fail in some cases:
-for (var_name in names(popfit$forest$xlevels)) {
+for (var_name in names(popfit_final$forest$xlevels)) {
 	assign("tmp_raster", raster( covariates[[var_name]]$path ))
 	if (xmin(tmp_raster) > xmin(my_extent)) { my_extent@xmin <- xmin(tmp_raster) }
 	if (xmax(tmp_raster) < xmax(my_extent)) { my_extent@xmax <- xmax(tmp_raster) }
@@ -1001,7 +1061,7 @@ census_mask <- crop(census_mask, my_extent)
 ##		I can't figure out where this is coming from (no traceback() is 
 ##		generated), and the resulting cropped images seems to overlay perfectly
 ##		so we'll just go with it.
-for (var_name in names(popfit$forest$xlevels)) {
+for (var_name in names(popfit_final$forest$xlevels)) {
 	print(paste("Stacking: ", var_name, sep=""))
 	flush.console()
 	assign(var_name, crop(raster( covariates[[var_name]]$path ), my_extent))
@@ -1012,8 +1072,10 @@ for (var_name in names(popfit$forest$xlevels)) {
 water_raster <- crop(raster( covariates[["lan_cls210"]]$path ), my_extent )
 
 
-##	Create a raster object based on our census data zones file to store our predictions:
-prediction_raster <- crop(raster(zonal_raster), my_extent)
+##	Create a raster object based on our census data zones file to store our predictions (see note above about why this is using census_mask instead
+##		of zonal_raster):
+#prediction_raster <- crop(raster(zonal_raster), my_extent)
+prediction_raster <- census_mask
 
 
 ##	Occasionally there is an error with cropping, a bug from the raster
@@ -1028,9 +1090,12 @@ prediction_raster <- crop(raster(zonal_raster), my_extent)
 #	print(paste("Stacking: ", var_name, sep=""))
 #	print(eval(parse(text=var_name)))
 #	print(eval(parse(text=paste("extent(", var_name, ") == extent(census_mask)", sep=""))))
+#	print(eval(parse(text=paste("nrow(", var_name, ") == nrow(census_mask)", sep=""))))
+#	print(eval(parse(text=paste("ncol(", var_name, ") == ncol(census_mask)", sep=""))))
 #	flush.console()
 #}
 #
+###	Fix extents (note that this will not fix differences in nrow/ncol):
 #for (var_name in c(names(popfit$forest$xlevels), "census_mask", "water_raster", "prediction_raster")) {
 #	print(paste("Fixing Extent: ", var_name, sep=""))
 #	eval(parse(text=paste("extent(", var_name, ") <- extent(census_mask)", sep="")))
@@ -1043,7 +1108,7 @@ covariate_stack <- eval(parse( text=
 	paste(
 		"stack(
 			c(", 
-			paste( c(names(popfit$forest$xlevels), "census_mask", "water_raster"), collapse=","),
+			paste( c(names(popfit_final$forest$xlevels), "census_mask", "water_raster"), collapse=","),
 			")
 		)"
 	)

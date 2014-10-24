@@ -44,6 +44,13 @@ execfile("01.0 - Configuration.py.r")
 round_counts = False
 
 
+##	Integrate Urban dataset:
+##		NOTE: If you set this to True then map production will use the
+##			raster representation of whatever you've used as the Urban data
+##			layer and "burn" the urban class into the land cover before
+##			adjusting population counts per pixel:
+use_urban = True
+
 
 ##	TODO: Eventually this can be set in the Metadata.r file and pulled
 ##		via JSON but for now we will set it here, you must make
@@ -54,13 +61,16 @@ round_counts = False
 ##		Growth rates are estimated for urban and rural areas for the years
 ##		included in GR_years. (file: growth_rates.xlsx)
 ##
-## 		!!!CAUTION!!!: if we use more recent census data (see the
+##	!!!CAUTION!!!: if we use more recent census data (see the
 ##			census_folder option below), it must be the rate from the more
 ##			recent census data to	2010 (i.e. from 2009 to 2010 for Vietnam) -
 ##			so calculation, for	VNM, is for one year:
 GR_years = [2010, 2015, 2020]
-GR_urb = [0.961943079,1.05992696,1.159165095]
-GR_rur = [0.986294783,1.020915731,1.039978459]
+GR_urb = [1.435050442,1.669793557,1.909229963]
+GR_rur = [1.033240521,1.036863198,1.028087212]
+#GR_years = [2000]
+#GR_urb = [1.031691822]
+#GR_rur = [1.006722495]
 
 
 ##	Processing flags:
@@ -68,12 +78,14 @@ GR_rur = [0.986294783,1.020915731,1.039978459]
 ##	Set UNADJUST to True if we want to produce a map adjusted to UN totals
 ##		for 2010, False otherwise:
 UNADJUST = [True, True, True]
+#UNADJUST = [True]
 
 ## If UNADJUST == True then we need to provide the UN total population for
 ##		that year - needed if you want to adjust map for U.N. esimates.
 ##		U.N. estimates are from the World Urbanization Prospects
 ##		(http://esa.un.org/unpd/wup/index.htm)
-UNPOP = [5788000, 6213000, 6603000]
+UNPOP = [87848000,92443000,96355000]
+#UNPOP = [78758000]
 
 
 ##	Should we skip processing and creation for any existing data sets:
@@ -287,9 +299,63 @@ data_desc = arcpy.Describe(in_path)
 input_prj = data_desc.SpatialReference.exportToString()
 
 if not os.path.isfile(landcover_path) or not skip_existing:
-	arcpy.ProjectRaster_management(in_path,landcover_path,final_prj,"NEAREST","0.000833","#","#",input_prj)
+ arcpy.ProjectRaster_management(in_path,landcover_path,final_prj,"NEAREST","0.000833","#","#",input_prj)
 
 landcover = Raster(landcover_path)
+
+
+##	If use_urban is True then we are going to burn in the Urban dataset
+##		converted to binary representation into our land cover for urban/rural
+##		growth rate application:
+if use_urban:
+	if not ("Urban" in dataset_folders):
+		print("ERROR:  No \"Urban\" folder found!  This is required per your configuration of use_urban in this script and indicates you possibly did not run the \"Data Preparation, R.r\" script or specify configuration options correctly in this Python processing script!")
+		exit()
+	else :
+		dataset_folders.remove("Urban")
+
+	##	Clip and project our land cover raster:
+	dataset_folder = "Urban"
+	print("PREPROCESS:  " + dataset_folder)
+
+	##	Instead of hardcoding it above we'll just pull in the only TIF or IMG
+	##		file that should be in the directory:
+	dataset_path = (glob.glob( data_path + dataset_folder + "/Derived/urban_cls.tif" ))
+	if dataset_path:
+		dataset_name = os.path.basename( dataset_path[0] )
+	else:
+		print("ERROR:  No urban cover file found!")
+		exit()
+
+	in_path = data_path + dataset_folder + "/Derived/" + dataset_name
+
+	output_name = "urban_popmap.tif"
+
+	out_path = ensure_dir(data_path + dataset_folder + "/Derived/")
+	urban_path = out_path + output_name
+
+	data_desc = arcpy.Describe(in_path)
+	input_prj = data_desc.SpatialReference.exportToString()
+
+	if not os.path.isfile(urban_path) or not skip_existing:
+	 arcpy.ProjectRaster_management(in_path,urban_path,final_prj,"NEAREST","0.000833","#","#",input_prj)
+
+	##	This assumes that your urban raster, however it was created is binary
+	##		with 1 indicating urban areas and 0 indicating non-urban:
+	urban = Raster(urban_path)
+
+	##	Now adjust land cover by burning in our urban data:
+	#landcover = landcover*(urban) + 190*(urban)
+	##	NOTE: From 2014-05-16 to 2014-09-24 this line was the previous rather 
+	##		than the following, which incorrectly burned in the urban class into 
+	##		the land cover and hence resulted in the incorrect, rural growth rate 
+	##		being applied to the entire map, rather than the urban growth rate.
+	##		The following corrects this:
+	landcover = landcover*Con(urban==1,0,1) + 190*(urban)
+
+	##	Save this land cover out for testing (can be commented):
+	outPath = output_path + "tmp/landcover_urban.tif"
+	landcover.save(outPath)
 
 
 ##	Population redistribution procedure using population from "admin_Union.shp"
@@ -312,24 +378,29 @@ census_year = row.YEARPOP
 
 ##	Calculate population map for census year:
 print("PPP: Calculating People Per Pixel " + str(census_year))
-if (round_counts):
-	##	Int() just truncates to integer values (note any populationcounts >
-	##		greater than 2,147,483,647 (maximum size determined by 2^31-1)
-	##		will be set to NoData:
-	popmap = Int((gridp * Raster(popdensity_weighting_final) / gridy) + 0.5)
-else:
-	popmap = gridp * Raster(popdensity_weighting_final) / gridy
 
-##	NOTE: So there's a bug in the arcpy raster optimization that
-##		often, even though you're specifying the .save() option will not
-##		actually write it out to disk until it thinks that you're really
-##		removing it from memory.  To force this to happen across versions
-##		of ArcGIS and arcpy set the raster object to None like this.
-##		Discovered here:
-##			http://gis.stackexchange.com/questions/46897/saving-rasters-in-a-python-for-loop-fails-only-on-last-iteration
 outPath = output_path + country + "_ppp_v" + rf_version + "_" + str(census_year) + ".tif"
-popmap.save(outPath)
-popmap = None
+dataset_path = glob.glob( outPath )
+
+if not dataset_path or not skip_existing:
+	if (round_counts):
+		##	Int() just truncates to integer values (note any populationcounts >
+		##		greater than 2,147,483,647 (maximum size determined by 2^31-1)
+		##		will be set to NoData:
+		popmap = Int((gridp * Raster(popdensity_weighting_final) / gridy) + 0.5)
+	else:
+		popmap = gridp * Raster(popdensity_weighting_final) / gridy
+
+	##	NOTE: So there's a bug in the arcpy raster optimization that
+	##		often, even though you're specifying the .save() option will not
+	##		actually write it out to disk until it thinks that you're really
+	##		removing it from memory.  To force this to happen across versions
+	##		of ArcGIS and arcpy set the raster object to None like this.
+	##		Discovered here:
+	##			http://gis.stackexchange.com/questions/46897/saving-rasters-in-a-python-for-loop-fails-only-on-last-iteration
+	popmap.save(outPath)
+	popmap = None
+
 popmap = Raster(outPath)
 
 
@@ -337,37 +408,47 @@ i = 0
 for popyear in GR_years:
 	if popyear != census_year:
 		print("PPP: Calculating People Per Pixel " + str(popyear))
-		if (round_counts):
-			##	Int() just truncates to integer values (note any populationcounts >
-			##		greater than 2,147,483,647 (maximum size determined by 2^31-1)
-			##		will be set to NoData:
-			popmap_year = Int((popmap * (landcover != 190.0) * GR_rur[i] + popmap * (landcover == 190.0) * GR_urb[i]) + 0.5)
-		else:
-			popmap_year = popmap * (landcover != 190.0) * GR_rur[i] + popmap * (landcover == 190.0) * GR_urb[i]
-
 		outPath = output_path + country + "_ppp_v" + rf_version + "_" + str(GR_years[i]) + ".tif"
-		popmap_year.save(outPath)
-		popmap_year = None
+		dataset_path = glob.glob( outPath )
+
+		if not dataset_path or not skip_existing:
+
+			if (round_counts):
+				##	Int() just truncates to integer values (note any populationcounts >
+				##		greater than 2,147,483,647 (maximum size determined by 2^31-1)
+				##		will be set to NoData:
+				popmap_year = Int((popmap * (landcover != 190.0) * GR_rur[i] + popmap * (landcover == 190.0) * GR_urb[i]) + 0.5)
+			else:
+				popmap_year = popmap * (landcover != 190.0) * GR_rur[i] + popmap * (landcover == 190.0) * GR_urb[i]
+
+			popmap_year.save(outPath)
+			popmap_year = None
+
 		popmap_year = Raster(outPath)
 	else:
 		popmap_year = popmap
 
 	if UNADJUST[i]:
 		print("PPP: Calculating People Per Pixel, UN Adjusted " + str(popyear))
-		zonsum = ZonalStatistics('admin_Union',"ISO", popmap_year, "SUM","DATA")
-		const = zonsum * 0 + UNPOP[i]
-
-		if (round_counts):
-			##	Int() just truncates to integer values (note any populationcounts >
-			##		greater than 2,147,483,647 (maximum size determined by 2^31-1)
-			##		will be set to NoData:
-			popmap_year_adj = Int( (popmap_year * (const / zonsum)) + 0.5 )
-		else:
-			popmap_year_adj = popmap_year * (const / zonsum)
-
 		outPath = output_path + country + "_ppp_v" + rf_version + "_" + str(GR_years[i]) + "_UNadj.tif"
-		popmap_year_adj.save(outPath)
-		popmap_year_adj = None
+		dataset_path = glob.glob( outPath )
+
+		if not dataset_path or not skip_existing:
+
+			zonsum = ZonalStatistics('admin_Union',"ISO", popmap_year, "SUM","DATA")
+			const = zonsum * 0 + UNPOP[i]
+
+			if (round_counts):
+				##	Int() just truncates to integer values (note any populationcounts >
+				##		greater than 2,147,483,647 (maximum size determined by 2^31-1)
+				##		will be set to NoData:
+				popmap_year_adj = Int( (popmap_year * (const / zonsum)) + 0.5 )
+			else:
+				popmap_year_adj = popmap_year * (const / zonsum)
+
+			popmap_year_adj.save(outPath)
+			popmap_year_adj = None
+
 		popmap_year_adj = Raster(outPath)
 
 	i += 1
@@ -406,8 +487,42 @@ if (arcpy.Exists("admin_Union_prj") == False): arcpy.MakeFeatureLayer_management
 
 
 ##	Load our already projected landcover file:
+dataset_folder = "Landcover"
 out_path = ensure_dir(data_path + dataset_folder + "/Derived/")
 landcover_path = out_path + "landcover.tif"
+
+landcover = Raster(landcover_path)
+
+
+##	If use_urban is True then we are going to burn in the Urban dataset
+##		converted to binary representation into our land cover for urban/rural
+##		growth rate application:
+if use_urban:
+	dataset_folder = "Urban"
+
+	##	Instead of hardcoding it above we'll just pull in the only TIF or IMG
+	##		file that should be in the directory:
+	dataset_path = (glob.glob( data_path + dataset_folder + "/Derived/urban_cls.tif" ))
+	if dataset_path:
+		dataset_name = os.path.basename( dataset_path[0] )
+	else:
+		print("ERROR:  No urban cover file found!")
+		exit()
+
+	urban_path = data_path + dataset_folder + "/Derived/" + dataset_name
+
+	##	This assumes that your urban raster, however it was created is binary
+	##		with 1 indicating urban areas and 0 indicating non-urban:
+	urban = Raster(urban_path)
+
+	##	Now adjust land cover by burning in our urban data:
+	#landcover = landcover*(urban) + 190*(urban)
+	##	NOTE: From 2014-05-16 to 2014-09-24 this line was the previous rather 
+	##		than the following, which incorrectly burned in the urban class into 
+	##		the land cover and hence resulted in the incorrect, rural growth rate 
+	##		being applied to the entire map, rather than the urban growth rate.
+	##		The following corrects this:
+	landcover = landcover*Con(urban==1,0,1) + 190*(urban)
 
 
 ##	Begin processing people per hectare using the same output but assuming
@@ -429,17 +544,22 @@ census_year = row.YEARPOP
 
 ##	Calculate population map for census year:
 print("PPHa: Calculating People Per Hectare " + str(census_year))
-if (round_counts):
-	##	Int() just truncates to integer values (note any populationcounts >
-	##		greater than 2,147,483,647 (maximum size determined by 2^31-1)
-	##		will be set to NoData:
-	popmap = Int( (gridp * Raster(popdensity_weighting_final) / gridy) + 0.5 )
-else:
-	popmap = gridp * Raster(popdensity_weighting_final) / gridy
-
 outPath = output_path + country + "_pph_v" + rf_version + "_" + str(census_year) + ".tif"
-popmap.save(outPath)
-popmap = None
+dataset_path = glob.glob( outPath )
+
+if not dataset_path or not skip_existing:
+
+	if (round_counts):
+		##	Int() just truncates to integer values (note any populationcounts >
+		##		greater than 2,147,483,647 (maximum size determined by 2^31-1)
+		##		will be set to NoData:
+		popmap = Int( (gridp * Raster(popdensity_weighting_final) / gridy) + 0.5 )
+	else:
+		popmap = gridp * Raster(popdensity_weighting_final) / gridy
+
+	popmap.save(outPath)
+	popmap = None
+
 popmap = Raster(outPath)
 
 
@@ -447,37 +567,48 @@ i = 0
 for popyear in GR_years:
 	if popyear != census_year:
 		print("PPHa: Calculating People Per Hectare " + str(popyear))
-		if (round_counts):
-			##	Int() just truncates to integer values (note any populationcounts >
-			##		greater than 2,147,483,647 (maximum size determined by 2^31-1)
-			##		will be set to NoData:
-			popmap_year = Int( (popmap * (landcover != 190.0) * GR_rur[i] + popmap * (landcover == 190.0) * GR_urb[i]) + 0.5 )
-		else:
-			popmap_year = popmap * (landcover != 190.0) * GR_rur[i] + popmap * (landcover == 190.0) * GR_urb[i]
-
 		outPath = output_path + country + "_pph_v" + rf_version + "_" + str(GR_years[i]) + ".tif"
-		popmap_year.save(outPath)
-		popmap_year = None
+		dataset_path = glob.glob( outPath )
+
+		if not dataset_path or not skip_existing:
+
+			if (round_counts):
+				##	Int() just truncates to integer values (note any populationcounts >
+				##		greater than 2,147,483,647 (maximum size determined by 2^31-1)
+				##		will be set to NoData:
+				popmap_year = Int( (popmap * (landcover != 190.0) * GR_rur[i] + popmap * (landcover == 190.0) * GR_urb[i]) + 0.5 )
+			else:
+				popmap_year = popmap * (landcover != 190.0) * GR_rur[i] + popmap * (landcover == 190.0) * GR_urb[i]
+
+			popmap_year.save(outPath)
+			popmap_year = None
+
 		popmap_year = Raster(outPath)
+
 	else:
 		popmap_year = popmap
 
 	if UNADJUST[i]:
 		print("PPHa: Calculating People Per Hectare, UN Adjusted " + str(popyear))
-		zonsum = ZonalStatistics('admin_Union_prj',"ISO", popmap_year, "SUM","DATA")
-		const = zonsum * 0 + UNPOP[i]
-
-		if (round_counts):
-			##	Int() just truncates to integer values (note any populationcounts >
-			##		greater than 2,147,483,647 (maximum size determined by 2^31-1)
-			##		will be set to NoData:
-			popmap_year_adj = Int( (popmap_year * (const / zonsum)) + 0.5 )
-		else:
-			popmap_year_adj = popmap_year * (const / zonsum)
-
 		outPath = output_path + country + "_pph_v" + rf_version + "_" + str(GR_years[i]) + "_UNadj.tif"
-		popmap_year_adj.save(outPath)
-		popmap_year_adj = None
+		dataset_path = glob.glob( outPath )
+
+		if not dataset_path or not skip_existing:
+
+			zonsum = ZonalStatistics('admin_Union_prj',"ISO", popmap_year, "SUM","DATA")
+			const = zonsum * 0 + UNPOP[i]
+
+			if (round_counts):
+				##	Int() just truncates to integer values (note any populationcounts >
+				##		greater than 2,147,483,647 (maximum size determined by 2^31-1)
+				##		will be set to NoData:
+				popmap_year_adj = Int( (popmap_year * (const / zonsum)) + 0.5 )
+			else:
+				popmap_year_adj = popmap_year * (const / zonsum)
+
+			popmap_year_adj.save(outPath)
+			popmap_year_adj = None
+
 		popmap_year_adj = Raster(outPath)
 
 	i += 1

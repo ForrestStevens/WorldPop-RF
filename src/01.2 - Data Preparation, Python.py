@@ -15,7 +15,7 @@ execfile("01.0 - Configuration.py.r")
 ##		in case a UTM zone needs to be edited, etc.:
 
 ##	For KHM, VNM:
-#intermediate_prj = "PROJCS['WGS_1984_UTM_Zone_48N',GEOGCS['GCS_WGS_1984',DATUM['D_WGS_1984',SPHEROID['WGS_1984',6378137.0,298.257223563]],PRIMEM['Greenwich',0.0],UNIT['Degree',0.0174532925199433]],PROJECTION['Transverse_Mercator'],PARAMETER['False_Easting',500000.0],PARAMETER['False_Northing',0.0],PARAMETER['Central_Meridian',105.0],PARAMETER['Scale_Factor',0.9996],PARAMETER['Latitude_Of_Origin',0.0],UNIT['Meter',1.0]]"
+intermediate_prj = "PROJCS['WGS_1984_UTM_Zone_48N',GEOGCS['GCS_WGS_1984',DATUM['D_WGS_1984',SPHEROID['WGS_1984',6378137.0,298.257223563]],PRIMEM['Greenwich',0.0],UNIT['Degree',0.0174532925199433]],PROJECTION['Transverse_Mercator'],PARAMETER['False_Easting',500000.0],PARAMETER['False_Northing',0.0],PARAMETER['Central_Meridian',105.0],PARAMETER['Scale_Factor',0.9996],PARAMETER['Latitude_Of_Origin',0.0],UNIT['Meter',1.0]]"
 ##	For KEN:
 #intermediate_prj = "PROJCS['WGS_1984_UTM_Zone_37N',GEOGCS['GCS_WGS_1984',DATUM['D_WGS_1984',SPHEROID['WGS_1984',6378137.0,298.257223563]],PRIMEM['Greenwich',0.0],UNIT['Degree',0.0174532925199433]],PROJECTION['Transverse_Mercator'],PARAMETER['False_Easting',500000.0],PARAMETER['False_Northing',0.0],PARAMETER['Central_Meridian',39.0],PARAMETER['Scale_Factor',0.9996],PARAMETER['Latitude_Of_Origin',0.0],UNIT['Meter',1.0]]"
 ##	For NGA:
@@ -29,7 +29,12 @@ execfile("01.0 - Configuration.py.r")
 ##	For CRI:
 #intermediate_prj = 'PROJCS["WGS_1984_UTM_Zone_16.5N",GEOGCS["GCS_WGS_1984",DATUM["D_WGS_1984",SPHEROID["WGS_1984",6378137.0,298.257223563]],PRIMEM["Greenwich",0.0],UNIT["Degree",0.0174532925199433]],PROJECTION["Transverse_Mercator"],PARAMETER["False_Easting",500000.0],PARAMETER["False_Northing",0.0],PARAMETER["Central_Meridian",-84.0],PARAMETER["Scale_Factor",0.9996],PARAMETER["Latitude_Of_Origin",0.0],UNIT["Meter",1.0],AUTHORITY["EPSG",32616]]'
 ##	For NIC:
-intermediate_prj = 'PROJCS["WGS_1984_UTM_Zone_16.25N",GEOGCS["GCS_WGS_1984",DATUM["D_WGS_1984",SPHEROID["WGS_1984",6378137.0,298.257223563]],PRIMEM["Greenwich",0.0],UNIT["Degree",0.0174532925199433]],PROJECTION["Transverse_Mercator"],PARAMETER["False_Easting",500000.0],PARAMETER["False_Northing",0.0],PARAMETER["Central_Meridian",-85.0],PARAMETER["Scale_Factor",0.9996],PARAMETER["Latitude_Of_Origin",0.0],UNIT["Meter",1.0],AUTHORITY["EPSG",32616]]'
+#intermediate_prj = 'PROJCS["WGS_1984_UTM_Zone_16.25N",GEOGCS["GCS_WGS_1984",DATUM["D_WGS_1984",SPHEROID["WGS_1984",6378137.0,298.257223563]],PRIMEM["Greenwich",0.0],UNIT["Degree",0.0174532925199433]],PROJECTION["Transverse_Mercator"],PARAMETER["False_Easting",500000.0],PARAMETER["False_Northing",0.0],PARAMETER["Central_Meridian",-85.0],PARAMETER["Scale_Factor",0.9996],PARAMETER["Latitude_Of_Origin",0.0],UNIT["Meter",1.0],AUTHORITY["EPSG",32616]]'
+##	For SUR:
+#intermediate_prj = "PROJCS['Zanderij_1972_UTM_Zone_21N',GEOGCS['GCS_Zanderij',DATUM['D_Zanderij',SPHEROID['International_1924',6378388.0,297.0]],PRIMEM['Greenwich',0.0],UNIT['Degree',0.0174532925199433]],PROJECTION['Transverse_Mercator'],PARAMETER['False_Easting',500000.0],PARAMETER['False_Northing',0.0],PARAMETER['Central_Meridian',-57.0],PARAMETER['Scale_Factor',0.9996],PARAMETER['Latitude_Of_Origin',0.0],UNIT['Meter',1.0],AUTHORITY['EPSG',31121]]"
+#intermediate_prj = "PROJCS['WGS_1984_UTM_Zone_21N',GEOGCS['GCS_WGS_1984',DATUM['D_WGS_1984',SPHEROID['WGS_1984',6378137.0,298.257223563]],PRIMEM['Greenwich',0.0],UNIT['Degree',0.0174532925199433]],PROJECTION['Transverse_Mercator'],PARAMETER['False_Easting',500000.0],PARAMETER['False_Northing',0.0],PARAMETER['Central_Meridian',-57.0],PARAMETER['Scale_Factor',0.9996],PARAMETER['Latitude_Of_Origin',0.0],UNIT['Meter',1.0],AUTHORITY['EPSG',32621]]"
+##	For HAI:
+#intermediate_prj = "PROJCS['WGS_1984_UTM_Zone_18.5N',GEOGCS['GCS_WGS_1984',DATUM['D_WGS_1984',SPHEROID['WGS_1984',6378137.0,298.257223563]],PRIMEM['Greenwich',0.0],UNIT['Degree',0.0174532925199433]],PROJECTION['Transverse_Mercator'],PARAMETER['False_Easting',500000.0],PARAMETER['False_Northing',0.0],PARAMETER['Central_Meridian',-72.0],PARAMETER['Scale_Factor',0.9996],PARAMETER['Latitude_Of_Origin',0.0],UNIT['Meter',1.0],AUTHORITY['EPSG',32618]]"
 
 ##	Alternative census folder:
 ##		This is a census folder other than the one used for the RF model
@@ -197,7 +202,7 @@ def process_point_area(dataset_folder):
 
 		##	This line can be commented to turn this behavior off (for example if you
 		##		end up with no data bars in ArcGIS 10.0):
-		arcpy.env.extent = ""
+		#arcpy.env.extent = ""
 
 		outRas = arcpy.FeatureToRaster_conversion(data_path + country + "/" + dataset_folder + "/Derived/" + dataset_name + ".shp", "FID", tmpRas1, 100)
 		print("PROCESSED:  " + dataset_folder + " Feature to Raster")
@@ -241,11 +246,11 @@ def process_raster_binary(dataset_folder):
 	#		file that should be in the directory:
 	dataset_path = (glob.glob( data_path + country + "/" + dataset_folder + "/" + "*.img" ) + glob.glob( data_path + country + "/" + dataset_folder + "/" + "*.tif" ))
 	if dataset_path:
-		dataset_name = os.path.basename( dataset_path[0] )
+		input_name = os.path.basename( dataset_path[0] )
 	else:
-		dataset_name = ""
+		input_name = ""
 
-	in_path = data_path + country + "/" + dataset_folder + "/" + dataset_name
+	in_path = data_path + country + "/" + dataset_folder + "/" + input_name
 
 	output_name = dataset_name + "_cls.tif"
 
@@ -289,11 +294,12 @@ def process_raster_continuous(dataset_folder):
 	#		file that should be in the directory:
 	dataset_path = (glob.glob( data_path + country + "/" + dataset_folder + "/" + "*.img" ) + glob.glob( data_path + country + "/" + dataset_folder + "/" + "*.tif" ))
 	if dataset_path:
-		dataset_name = os.path.basename( dataset_path[0] )
+		input_name = os.path.basename( dataset_path[0] )
 	else:
-		dataset_name = ""
+		print("ERROR:  No .tif or .img file was found in the " + dataset_folder + " data folder!")
+		exit()
 
-	in_path = data_path + country + "/" + dataset_folder + "/" + dataset_name
+	in_path = data_path + country + "/" + dataset_folder + "/" + input_name
 
 	output_name = dataset_name + ".tif"
 
@@ -322,14 +328,14 @@ tmp_path = ensure_dir(output_path + country + "/tmp")
 tmp_path = output_path + country + "/tmp/"
 
 
-##	Now that we have a tmp_path specified, load the JSON objects that
-##		specify the metadata and covariates specific to each dataset we
-##		need to process:
-metadata_json = open(tmp_path + "metadata.json")
-covariates_json = open(tmp_path + "covariates.json")
-
-metadata = json.load(metadata_json)
-covariates = json.load(covariates_json)
+###	Now that we have a tmp_path specified, load the JSON objects that
+###		specify the metadata and covariates specific to each dataset we
+###		need to process:
+#metadata_json = open(tmp_path + "metadata.json")
+#covariates_json = open(tmp_path + "covariates.json")
+#
+#metadata = json.load(metadata_json)
+#covariates = json.load(covariates_json)
 
 
 ##	TODO: I need to configure the covariate processing to respect the
@@ -615,15 +621,19 @@ if ("NPP" in dataset_folders):
 
 		#outCon = Con(Raster(out_path), 0, Raster(out_path), "VALUE >= 65530 AND VALUE <= 65534")
 
-		##      NOTE: The Con() statement fails more often than not, though
-		##              inconsistently for some countries and for no reason that I
-		##              can reliably troubleshoot.  Therefore we create a connection
-		##              to the raster object and run the SetNull() functions first
-		##              and this seems to more consistently finish.
+		##	NOTE: The Con() statement fails more often than not, though
+		##		inconsistently for some countries and for no reason that I
+		##		can reliably troubleshoot.  Therefore we create a connection
+		##		to the raster object and run the SetNull() functions first
+		##		and this seems to more consistently finish.
 		outCon = Raster(out_path)
 		outCon = SetNull(outCon==65529, outCon)
 		outCon = SetNull(outCon==65535, outCon)
 		outCon = Con(outCon, 0, outCon, "VALUE >= 65530 AND VALUE <= 65534")
+
+		##	TODO: When transitioning to Google Compute Engine we need to make sure that
+		##		the NULL values get nibbled out with their nearest good value, like the
+		##		WorldClim data...
 
 
 		output_name = "npp.tif"
@@ -1036,34 +1046,46 @@ if ("Urban" in dataset_folders):
 	dataset_folder = "Urban"
 	print("PROCESSING:  " + dataset_folder)
 
-	##	If a shapefile dataset exists in the folder we'll use it, otherwise we
-	##		will pull the default dataset:
-	dataset_path = (glob.glob( data_path + country + "/" + dataset_folder + "/" + "*.shp" ))
+
+	##	Check to see if instead of a shapefile urban extent we have a raster
+	##		for Urban data:
+	dataset_path = (glob.glob( data_path + country + "/" + dataset_folder + "/" + "*.img" ) + glob.glob( data_path + country + "/" + dataset_folder + "/" + "*.tif" ))
+
 	if dataset_path:
-		dataset_name = os.path.basename( dataset_path[0] )
+		##	If we have a raster, we're just going to add this back in to
+		##		process as a non-default data set and skip the rest of the
+		##		processing here:
+		dataset_folders.append("Urban")
+
 	else:
-		dataset_name = ""
+		##	If a shapefile dataset exists in the folder we'll use it,
+		##		otherwise we will pull the default dataset:
+		dataset_path = (glob.glob( data_path + country + "/" + dataset_folder + "/" + "*.shp" ))
+		if dataset_path:
+			dataset_name = os.path.basename( dataset_path[0] )
+		else:
+				dataset_name = ""
 
-	tmp_path = ensure_dir(data_path + country + "/" + dataset_folder)
+		tmp_path = ensure_dir(data_path + country + "/" + dataset_folder)
 
-	if dataset_name == "":
-		dataset_name = (glob.glob( UrbExtents_path + "/" + "*.shp" ))
-		in_path = dataset_name[0]
-	else:
-		in_path = tmp_path + "/" + dataset_name
+		if dataset_name == "":
+			dataset_name = (glob.glob( UrbExtents_path + "/" + "*.shp" ))
+			in_path = dataset_name[0]
+		else:
+			in_path = tmp_path + "/" + dataset_name
 
-	output_name = "urban.shp"
-	tmp_path = ensure_dir(data_path + country + "/" + dataset_folder + "/Derived")
-	out_path = tmp_path + "/" + output_name
+		output_name = "urban.shp"
+		tmp_path = ensure_dir(data_path + country + "/" + dataset_folder + "/Derived")
+		out_path = tmp_path + "/" + output_name
 
-	if not os.path.isfile(out_path) or not skip_existing:
-		##	See note above about clipping and process extent in ArcGIS 10.1:
-		tmp_extent = arcpy.env.extent
-		arcpy.env.extent = None
-		arcpy.Clip_analysis(in_path, buffer_path, out_path,"#")
-		arcpy.env.extent = tmp_extent
+		if not os.path.isfile(out_path) or not skip_existing:
+			##	See note above about clipping and process extent in ArcGIS 10.1:
+			tmp_extent = arcpy.env.extent
+			arcpy.env.extent = None
+			arcpy.Clip_analysis(in_path, buffer_path, out_path,"#")
+			arcpy.env.extent = tmp_extent
 
-	process_point_area(dataset_folder)
+		process_point_area(dataset_folder)
 
 
 
@@ -1360,13 +1382,23 @@ for dataset_folder in dataset_folders:
 			dataset_path = data_path + country + "/" + dataset_folder + "/" + dataset_orig_name
 
 			##	Determine whether the raster is binary or continuous:
-			unique_value_count_result = arcpy.GetRasterProperties_management(dataset_path, "UNIQUEVALUECOUNT")
-			unique_value_count = unique_value_count_result.getOutput(0)
 
-			if unique_value_count <= 3:
-				process_raster_binary(dataset_folder)
-			else:
+			##	First see if this is a floating point raster:
+			value_type_result = arcpy.GetRasterProperties_management(dataset_path, "VALUETYPE")
+			value_type = value_type_result.getOutput(0)
+
+			if value_type == "9" or value_type == "10":
+				##	If it is floating point or double then process as continuous:
 				process_raster_continuous(dataset_folder)
+			else:
+				##	If not, then check to see if it has more than 2 unique values:
+				unique_value_count_result = arcpy.GetRasterProperties_management(dataset_path, "UNIQUEVALUECOUNT")
+				unique_value_count = unique_value_count_result.getOutput(0)
+
+				if int(unique_value_count) <= 3:
+					process_raster_binary(dataset_folder)
+				else:
+					process_raster_continuous(dataset_folder)
 
 
 ##	END: Data pre-processing for non-default datasets

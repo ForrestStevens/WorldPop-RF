@@ -9,11 +9,11 @@
 
 
 ##	Configure the country abbreviation and name:
-country = "NIC"
+country = "KHM"
 
 ##	The version of the scripts used to produce the mapping products, and
 ##		which will match the "_v" portion of the filename outputs:
-rf_version = "2b"
+rf_version = "2c"
 
 ##	This should be set to the folder *containing* the "RF" folder structure,
 ##		but make sure that you use forward slashes instead of back slashes or
