@@ -1,0 +1,291 @@
+```{r setup, echo=FALSE, results='hide', message=FALSE, warning=FALSE}
+#####
+##	BEGIN:	Load configuration options
+
+##	This section can be safely commented as long as you have already opened
+##		and run the Metadata.R file that should be located within the 
+##		RF/data/*/ folder where * represents the country name for which the
+##		RF folder is located.
+
+##	NOTE:  It's critical that you realize that anything you specify here 
+##		will be overridden by the values read in from the Metadata.r file
+##		so the paths may be incorrect if specified incorrectly inside that
+##		file!
+
+##	Configure the country abbreviation and name:
+country <- "NGA"
+
+##	This should be set to the folder *containing* the "RF" folder structure:
+root_path <- "D:/Documents/Graduate School/Research/Population/Data/"
+project_path <- paste(root_path, "RF/data/", country, "/", sep="")
+
+##	Load the metadata from the file created in the country's /data folder:
+source(paste(project_path, "Metadata.r", sep=""))
+
+##	WARNING: Though it's possible to knit this file directly you should
+##		just save it after changing the country above and then run the
+##		"Generate Metadata Report.r" script to knit, copy and rename 
+##		the report itself!
+
+##	END:	Load configuration options
+#####
+
+
+
+#####
+##	NOTICE:  In practice nothing below this line should need to be regularly
+##		edited unless very specific details need to be changed about the 
+##		modeling process (e.g. speciyfing an extent or something detailed
+##		about the RandomForest modeling).
+#####
+
+
+
+#####
+##	BEGIN:	Package loading
+
+require(rgdal)
+require(maptools)
+require(raster)
+require(randomForest)
+require(quantregForest)
+require(xtable)
+require(GSIF)
+require(RSAGA)
+require(plotKML)
+require(knitr)
+
+##	BEGIN:	Package loading
+#####
+
+
+
+#####
+##	BEGIN:	Report configuration
+
+##	Parameters and defaults:
+
+##	Set the working directory and knitr options for R markdown output:
+##	NOTE: Neither of these actually controls the output location of the 
+##		markdown and figure files.  The base.dir= option will successfully
+##		move the /figure folder, however, but then the resulting .html file
+##		does not actually find them.  So instead of relying on these to work
+##		we move them below.
+#setwd(output_path_tmp)
+#opts_knit$set(root.dir=output_path_tmp)
+
+
+##	Set output parameters:
+options(digits = 2, scipen = 6)
+
+##	Set upper limit population plotting, may need to be changed for some
+##		countries with very dense or not very densely populated census units:
+max_pop <- 35
+
+##	END:	Report configuration
+#####
+
+
+
+#######
+##	BEGIN:  Data loading
+
+load(paste(output_path_tmp, "popfit_final.RData", sep=""))
+load(paste(output_path_tmp, "popfit_quant.RData", sep=""))
+predict_density <- raster(paste(output_path, "predict_density.img", sep=""))
+
+##	END:  Data loading
+#######
+```
+`r country_name` Population Map Metadata Report
+========================================================
+
+Prediction Weighting Layer Used in Population Redistribution
+--------------------------------------------------------
+
+The data presented below represent the predicted number of people per ~100 m pixel as estimated using the random forest (RF) model as described in Stevens, et al. (In Press).  The following pages contain a description of the RF model and its covariates, their sources and any metadata collected for each covariate.  The prediction weighting layer is used to dasymetrically redistribute the census counts and project counts to match estimated populations based on UN estimates for the final population maps provided by AfriPop, AsiaPop and AmeriPop.
+
+```{r predict_density, echo=FALSE, fig.height=10, fig.width=10, out.width="720px", out.height="720px", cache=TRUE}
+z.lim = c(0,max_pop)
+color_vec <- colorRampPalette(c("navyblue", "steelblue", "limegreen", "yellow", "#FEFEFE"))(255)
+
+plot(predict_density, col=color_vec, zlim=z.lim, frame.plot=TRUE, main=paste(country_name, "Prediction Weighting Layer"), xlab="Projected Map Coordinates")
+```
+  
+  
+`r country_name` Census Data and Observed Population Density
+--------------------------------------------------------
+
+These data are the population density values used to estimate the RF model used to create the prediction weighting layer you see above.  Values represent population density as measured by people per hectare and calculated from population counts within each census unit.  These values are used as the dependent variable during model estimation.
+
+```{r census_data, echo=FALSE, comment="", results='asis', fig.width=10, fig.height=10, out.width="720px", out.height="720px", cache=TRUE}
+cat(paste("###", metadata[["Census"]]$dataset_title), "  \n")
+cat(paste("**Folder:**", metadata[["Census"]]$dataset_folder), "  \n")
+cat(paste("**File Name:**", metadata[["Census"]]$dataset_name), "  \n")
+cat(paste("**Source:**", metadata[["Census"]]$dataset_source), "  \n")
+cat(paste("**Description:**", metadata[["Census"]]$dataset_description), "  \n")
+cat(paste("**Class:**", metadata[["Census"]]$dataset_class), "  \n")
+cat("**Derived Covariates:**  \n")
+cat(metadata[["Census"]]$derived, "  \n", sep=", ")
+cat("  \n")
+cat("  \n")
+
+data_path <- paste(project_path, metadata[["Census"]]$dataset_folder, "/", sep="")
+	
+derived_path <- paste(data_path, "Derived/", sep="")
+dataset_name <- "census_area.shp"
+dataset_path <- paste(derived_path, dataset_name, sep="")
+
+cat("```\n")
+dataset <- readShapePoly(dataset_path)
+dataset$AREA_HA <- dataset$F_AREA / 10000
+dataset$POPD_PPHA <- dataset$ADMINPOP / dataset$AREA_HA
+
+text_out <- capture.output(print(dataset))
+cat(text_out[1:5], sep="\n")
+cat("```\n")
+
+spplot(dataset, zcol="POPD_PPHA", main=paste(metadata[["Census"]]$dataset_title, "Population Density (People/Ha)"), col.regions=color_vec, col=rgb(red=0, blue=0, green=0, alpha=0.1), at=seq(0,max_pop,max_pop/254))
+
+
+cat("  \n")
+cat("  \n")
+cat("  \n")
+cat("--------------------------------------------------------\n")
+cat("  \n")
+cat("  \n")
+cat("  \n")
+```
+  
+  
+  
+Random Forest Model and Diagnostics
+--------------------------------------------------------
+
+These output and figures outline the estimated RF model that is used to predict the population density weighting layer.  The model is fitted to the population density values for the preceding census data using covariates aggregatedfrom the ancillary data sources summarized following the model diagnostics.
+
+```{r random_forest, echo=FALSE, comment="", fig.width=10, fig.height=10, out.width="720px", out.height="720px", cache=TRUE}
+
+if (!is.null(fixed_set)) {
+	if ((length(fixed_set) != 1) | !(country %in% fixed_set)) {
+		print("Random Forest model is a merged RF model using models from:")
+		cat(fixed_set, "  \n", sep=", ")
+		load(file=paste(output_path_tmp, "popfit_final_combined.RData", sep=""))
+		load(file=paste(output_path_tmp, "popfit_quant_combined.RData", sep=""))
+	}
+}
+
+popfit_final
+varImpPlot(popfit_final, main=paste("Covariate Importance Plot for", country, "RF Model"))
+plot(popfit_final, main=paste("Prediction Error (MSE) Stability for", country, "RF Model"))
+plot(popfit_quant)
+```
+
+  
+  
+  
+Covariate Metadata
+--------------------------------------------------------
+```{r covariate_reports, echo=FALSE, comment="", results='asis', fig.width=10, fig.height=10, out.width="720px", out.height="720px", cache=TRUE}
+
+for (i in names(metadata)[names(metadata) != "Census"]) {
+	cat(paste("###", metadata[[i]]$dataset_title), "  \n")
+	cat(paste("**Folder:**", metadata[[i]]$dataset_folder), "  \n")
+	cat(paste("**File Name:**", metadata[[i]]$dataset_name), "  \n")
+	cat(paste("**Source:**", metadata[[i]]$dataset_source), "  \n")
+	cat(paste("**Description:**", metadata[[i]]$dataset_description), "  \n")
+	cat(paste("**Class:**", metadata[[i]]$dataset_class), "  \n")
+	cat("**Derived Covariates:**  \n")
+	cat(metadata[[i]]$derived, "  \n", sep=", ")
+	cat("  \n")
+	cat("  \n")
+
+	##	If the dataset is one of the DEFAULT datasets without a file
+	##		located in the dataset folder then we will descend to the
+	##		Derived folder and pull the projected, output data:
+	
+	##	Alternatively, without the if statement we will always descend
+	##		and take the projected, clilpped dataset, which I think is better:
+	
+	#if (!file.exists( metadata[[i]]$path)) {
+		#data_path <- gsub("/[^/]*$", "/", metadata[[i]]$path)
+		
+		##	This works well for everything except VMAP0 metadata which includes
+		##		a squirrely slash in the name...  Therefore we'll just build
+		##		the data_path from folder name:
+		data_path <- paste(project_path, metadata[[i]]$dataset_folder, "/", sep="")
+		
+		derived_path <- paste(data_path, "Derived/", sep="")
+
+		metadata[[i]]$dataset_name <- list.files(derived_path, paste(metadata[[i]]$dataset_folder, ".*(tif$|img$|shp$)", sep=""), ignore.case=TRUE)[1]
+
+		metadata[[i]]$path <- paste(derived_path, metadata[[i]]$dataset_name, sep="")
+
+	#}
+	
+	#print(metadata[[i]]$path)
+	
+	if (metadata[[i]]$dataset_class == "raster") {
+
+		dataset <- raster( metadata[[i]]$path )
+		text_out <- capture.output(dataset)
+		cat("```\n")
+		cat(text_out, sep="\n")
+		cat("```\n")
+	
+	} else {
+
+		##		We had to set the warning=FALSE flag so that the Z-dimension
+		##		discarded warnings did not disrupt the output rendering for 
+		##		shapefiles... However the options() call seems to do nothing...
+		#options(warn=-1)
+		#dataset <- readOGR( dsn=gsub("/$", "", derived_path), layer=gsub(".shp$", "", metadata[[i]]$dataset_name))
+		#options(warn=0)
+
+		if (metadata[[i]]$dataset_class == "polygon") {
+			dataset <- readShapePoly(metadata[[i]]$path)
+		} else if (metadata[[i]]$dataset_class == "point") {
+			dataset <- readShapePoints(metadata[[i]]$path)
+		} else {
+			##	metadata[[i]]$dataset_class == "linear"
+			dataset <- readShapeLines(metadata[[i]]$path)
+		}
+
+		text_out <- capture.output(print(dataset))
+		cat("```\n")
+		cat(text_out[1:5], sep="\n")
+		cat("```\n")
+
+		
+		##	NOTE: This shouldn't need to be here but is perhaps a bug that may
+		##		cause problems later on as the knitr package evolves.  The plot 
+		##		is outside the if() statement below, which sets the title but
+		##		this on its own cause problems for shapefile plotting, as it didn't
+		##		actually generate any image beyond the first.  It seems to
+		##		be  by-product of the multi-stage output/document conversion
+		##		that knit2html() peforms and potentially a warning suppression 
+		##		issue that needed to be handled by setting warning=FALSE (see 
+		##		above).
+		#plot(dataset, title=metadata[[i]]$dataset_title)
+
+	}
+
+	
+	###	Generate the default plot for either the raster or shapefile dataset.
+	#if (metadata[[i]]$dataset_class == "raster") {
+	#	plot(dataset, main=metadata[[i]]$dataset_title)
+	#} else {
+	#	plot(dataset, title=metadata[[i]]$dataset_title)
+	#}
+	plot(dataset, main=metadata[[i]]$dataset_title)
+
+
+	cat("  \n")
+	cat("  \n")
+	cat("  \n")
+	cat("--------------------------------------------------------\n")
+	cat("  \n")
+	cat("  \n")
+	cat("  \n")
+}
+```
