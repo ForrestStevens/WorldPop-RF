@@ -392,12 +392,6 @@ y_data <- census_data@data$POPD_PPHA
 ##	instead of the v190 and v240 classes separately, but with a
 ##	proportion of "urban" and "rural" within 1k of pixel also
 ##	included, with PLC_140 and wtap_dist removed (had a negative Inc. %MSE):
-#x_data <- census_data@data[,c(22:24, 26, 28:29, 34, 38, 41:42, 45:47)]
-
-## Subset dataset without DEM information and water lines permananet distance: 
-##	and using the "Built" class instead of the v190 and v240 classes 
-##	separately, but with a proportion of "urban" and "rural" within 1k of pixel also
-##	included, with PLC_140 and wtap_dist removed (had a negative Inc. %MSE):
 x_data <- census_data@data[,c(22:24, 26, 28:29, 34, 38, 41:42, 45:47)]
 
 ##	Convert to factors where appropriate:
@@ -422,7 +416,7 @@ memory.size()
 
 
 ##	Now we are going tune our randomForest population density regression: 
-tuneRF(x=x_data, y=y_data, plot=TRUE, mtryStart=9, ntreeTry=5000, improve=0.0001, stepFactor=1.1, trace=TRUE) 
+tuneRF(x=x_data, y=y_data, plot=TRUE, mtryStart=9, ntreeTry=5000, improve=0.0001, stepFactor=1.25, trace=TRUE) 
 
 ##mtry = 9  OOB error = 13.94321 
 ##Searching left ...
