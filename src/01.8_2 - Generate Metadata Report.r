@@ -11,14 +11,14 @@
 ##		so the paths may be incorrect if specified incorrectly inside that
 ##		file!
 
-##	Configure the country abbreviation and name:
-country <- "NGA"
 
-##	This should be set to the folder *containing* the "RF" folder structure:
-root_path <- "D:/Documents/Graduate School/Research/Population/Data/"
-project_path <- paste(root_path, "RF/data/", country, "/", sep="")
+##	Parse main configuration file, which will set the country and root_path
+##		variables:
+source("01.0 - Configuration.py.r")
+
 
 ##	Load the metadata from the file created in the country's /data folder:
+project_path <- paste(root_path, "data/", country, "/", sep="")
 source(paste(project_path, "Metadata.r", sep=""))
 
 ##	END:	Load configuration options
@@ -52,7 +52,7 @@ start_time = proc.time()[3]
 
 ##	Change the working directory to the /src folder to load in a list of 
 ##		all R markdown (.Rmd) files:
-src_path <- paste(root_path, "RF/src/", sep="")
+src_path <- paste(root_path, "src/", sep="")
 report_files <- list.files(src_path, pattern='\\.Rmd$', full.names = FALSE)
 
 ##	Change the working directory back to the output temporary folder for
@@ -79,6 +79,10 @@ print(paste("Elapsed Processing Time:", proc.time()[3] - start_time, "seconds"))
 #	unlink(output_report_name)
 #}
 #markdown::markdownToHTML(file=paste(output_path_tmp, sub("\\.Rmd", ".md", report_file), sep=""), output=output_report_name)
+
+
+##	Return our working directory to the source folder:
+setwd(paste(root_path, "src", sep=""))
 
 
 ##	END:	Report generation

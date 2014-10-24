@@ -11,14 +11,14 @@
 ##		so the paths may be incorrect if specified incorrectly inside that
 ##		file!
 
-##	Configure the country abbreviation and name:
-country <- "NGA"
 
-##	This should be set to the folder *containing* the "RF" folder structure:
-root_path <- "D:/Documents/Graduate School/Research/Population/Data/"
-project_path <- paste(root_path, "RF/data/", country, "/", sep="")
+##	Parse main configuration file, which will set the country and root_path
+##		variables:
+source("01.0 - Configuration.py.r")
+
 
 ##	Load the metadata from the file created in the country's /data folder:
+project_path <- paste(root_path, "data/", country, "/", sep="")
 source(paste(project_path, "Metadata.r", sep=""))
 
 ##	END:	Load configuration options
@@ -42,6 +42,7 @@ require(raster)
 require(GSIF)
 require(plotKML)
 require(rgdal)
+require(R.utils)
 
 ##	Occasionally RSAGA won't load, so you may need to require it on 
 ##		its own:
@@ -49,7 +50,32 @@ require(RSAGA)
 
 
 ##	Set up data paths:
-output_file <- paste(output_path, country, "_popmap_v", version, ".tif", sep="")
+
+
+##	First, we check to see if we used an alternative census file for map
+##		production than the one we used for RF model parameterization:
+##	TODO:  Eventually this needs to be pulled from the Metadata.R file
+##		instead of a hard coded directory presence.
+dataset_folders <- list.dirs(path=project_path, full.names=FALSE, recursive=FALSE)
+
+if (paste(project_path, "/! New Census", sep="") %in% dataset_folders) {
+	census_folder_name <- "! New Census"
+	new_census_section <- TRUE
+} else {
+	census_folder_name <- "Census"
+	new_census_section <- FALSE
+}
+
+
+
+dataset_name <- list.files(paste(project_path, census_folder_name, "/", sep=""),  "shp$")
+census_data <- readOGR(dsn=paste(project_path, census_folder_name, sep=""), substr(dataset_name, 1, nchar(dataset_name)-4))
+census_year <- census_data[["YEARPOP"]][1]
+
+
+##	Default coarse level output (for automated output from my scripts):
+output_file <- paste(output_path, country, "_ppp_v", rf_version, "_", census_year, ".tif", sep="")
+
 
 kml_output_path <- paste(output_path_tmp, "kml/", sep="")
 dir.create(kml_output_path, showWarnings=FALSE)
@@ -198,6 +224,14 @@ frs_plotKML <- function (obj, ...) {
 }
 
 
+##	We are also going to override the internal function from GSIF that tries
+##		to use the Windows registry to locate FWTools so that we can use our
+##		own, hardcoded path to the FWTools folder.  This uses the handy
+##		reassignInPackage() function from the R.utils package:
+frs_FWTools.path <- function(...) { return(paste(root_path, "/bin/FWTools2.4.7/", sep="")) }
+reassignInPackage(".FWTools.path", pkgName="GSIF", frs_FWTools.path)
+
+
 ##	END:	Internal function declaration
 #####
 
@@ -219,7 +253,7 @@ frs_plotKML <- function (obj, ...) {
 ##	BEGIN:	Data loading and data structure setup
 
 ##	If our covariate data already exist load it, if not create it:
-#setwd(paste(project_path, "Census/Derived", sep=""))
+#setwd(paste(project_path, census_folder_name, "/Derived", sep=""))
 
 #census_data <- readOGR(".", "census_covariates")
 raster_data <- raster(output_file)
@@ -247,14 +281,14 @@ z.lim = c(0,35)
 
 ##	This will fail on large countries with big rasters... Therefore we need
 ##		to tile them using the following:
-#plotKML(raster_data, file.name=paste(country, "_popmap_admin", aggregation_level, "_v", version, ".kml", sep=""), colour_scale=SAGA_pal[[1]], z.lim=z.lim)
+#plotKML(raster_data, file.name=paste(country, "_ppp_v", rf_version, "_", census_year, ".kml", sep=""), colour_scale=SAGA_pal[[1]], z.lim=z.lim)
 
 ##	We no longer need to do this because we are tiling our output at 100 
 ##		pixel wide/high, but this is what you need to do if you regenerate
 ##		the PNG being mapped to Google Earth:
 
 ###	Now re-plot our image at full resolution:
-#png(filename = paste(project_output_path, country, "_popmap_admin", aggregation_level, "_v", version, ".png", sep=""), bg = "transparent", type = "cairo-png")
+#png(filename = paste(country, "_ppp_v", rf_version, "_", census_year, ".kml", sep=""), bg = "transparent", type = "cairo-png")
 #par(mar = c(0, 0, 0, 0), xaxs = "i", yaxs = "i")
 #obj <- raster_data
 #obj <- calc(obj, fun = function(x) {
@@ -290,7 +324,7 @@ raster_data_list <- tile(raster_data, block.x=500 * 0.0008333)
 ##		#FFFFFF which is the transparent color so that zeroes are clear:
 color_vec <- colorRampPalette(c("navyblue", "steelblue", "limegreen", "yellow", "#FEFEFE"))(255)
 #color_vec[1] <- "#FFFFFF"
-frs_plotKML(raster_data_list, file.name=paste(country, "_popmap_v", version, ".kml", sep=""), colour_scale=color_vec, z.lim=z.lim, kmz=FALSE)
+frs_plotKML(raster_data_list, file.name=paste(country, "_ppp_v", rf_version, "_", census_year, ".kml", sep=""), colour_scale=color_vec, z.lim=z.lim, kmz=FALSE)
 
 
 ##	Now the last thing that we need to do is to convert all of our output 
@@ -298,9 +332,8 @@ frs_plotKML(raster_data_list, file.name=paste(country, "_popmap_v", version, ".k
 ##		due to transparency issues (4-bit and 2-bit PNG with transparent 
 ##		colors don't work in Google Earth).  To do this we use a system
 ##		call to ImageMagick's mogrify command:
-shell("mogrify -format png -depth 8 -type TruecolorMatte -define png:color-type=6 *.png", intern=TRUE)
-#shell(paste("zip ..\\", country, "_popmap_admin", aggregation_level, "_v", version, ".kmz *.*", sep=""), intern=TRUE)
-shell(paste("\"C:\\Program Files\\7-Zip\\7z.exe\" -Tzip a ..\\..\\", country, "_popmap_v", version, ".kmz *.*", sep=""), intern=TRUE)
+shell(paste('"', root_path, 'bin\\ImageMagick-6.7.4-Q16\\mogrify.exe" -format png -depth 8 -type TruecolorMatte -define png:color-type=6 *.png', sep=""), intern=TRUE)
+shell(paste('"', root_path, "bin\\7-Zip\\7z.exe\" -Tzip a ..\\..\\", country, "_ppp_v", rf_version, "_", census_year, ".kmz *.*", sep=""), intern=TRUE)
 
 
 
@@ -310,6 +343,10 @@ shell(paste("\"C:\\Program Files\\7-Zip\\7z.exe\" -Tzip a ..\\..\\", country, "_
 #proj4string(eberg_grid) <- CRS("+init=epsg:31467")
 #data(SAGA_pal)
 #plotKML(eberg_grid["TWISRT6"], colour_scale = SAGA_pal[[1]])
+
+
+##	Return our working directory to the source folder:
+setwd(paste(root_path, "src", sep=""))
 
 
 ##	END:	Plot an figure for KML conversion

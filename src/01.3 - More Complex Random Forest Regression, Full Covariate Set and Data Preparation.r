@@ -11,14 +11,14 @@
 ##		so the paths may be incorrect if specified incorrectly inside that
 ##		file!
 
-##	Configure the country abbreviation and name:
-country <- "NGA"
 
-##	This should be set to the folder *containing* the "RF" folder structure:
-root_path <- "D:/Documents/Graduate School/Research/Population/Data/"
-project_path <- paste(root_path, "RF/data/", country, "/", sep="")
+##	Parse main configuration file, which will set the country and root_path
+##		variables:
+source("01.0 - Configuration.py.r")
+
 
 ##	Load the metadata from the file created in the country's /data folder:
+project_path <- paste(root_path, "/data/", country, "/", sep="")
 source(paste(project_path, "Metadata.r", sep=""))
 
 ##	END:	Load configuration options
@@ -84,6 +84,18 @@ require(tcltk)
 ##	Fixed parameters and defaults:
 proj4str_gcs_wgs84 <- "+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"
 
+
+##	Set the path to the Python location which has access to ArcGIS 
+##		Geoprocessing facilities.  As long as you're running RStudio using
+##		the batch file to start it the ARCPY environment variable should
+##		contain the appropriate path:
+#python_path <- "C:/Python26/ArcGIS10.0"
+python_path <- Sys.getenv("ARCPY")
+
+if (python_path == "") {
+	stop("ERROR:  There's an error somewhere in your configuration!  The system path to Python does not exist.  The RF software expects to have the ARCPY= environment setting set either by the system or the RStudio batch file to the location of ArcGIS' version of Python, by default, C:/Python27/ArcGIS10.1 for example for ArcGIS 10.1.  Double check that ARCPY is set in the environment settings and/or in the RStudio batch file!")
+}
+
 ##	END: Package loading and fixed parameter configuration
 #####
 
@@ -120,7 +132,7 @@ transY <- function(x, inverse=FALSE) {
 arcgis_zonal <- function(raster_file, census_file, mask_file="", stat="MEAN") {
 	workspace_dir <- "C:/tmp"
 
-	rpygeo_env <- rpygeo.build.env(extensions="Spatial", python.path="C:/Python26/ArcGIS10.0", python.command="python.exe", workspace=workspace_dir, overwriteoutput=1)
+	rpygeo_env <- rpygeo.build.env(extensions="Spatial", python.path=python_path, python.command="python.exe", workspace=workspace_dir, overwriteoutput=1)
 
 	##	Basic fixes for accomodating the R zonal() arguments:
 	stat = toupper(stat)
@@ -137,7 +149,8 @@ arcgis_zonal <- function(raster_file, census_file, mask_file="", stat="MEAN") {
 				"    mask_raster = Raster(\"", mask_file, "\")\n",
 				"    data_raster = Raster(\"", raster_file, "\")\n",
 				"    out_raster = SetNull(mask_raster == 1, data_raster)\n",
-				"    out_raster.save(\"", workspace_dir, "/out_raster.tif\")",
+				"    out_raster.save(\"", workspace_dir, "/out_raster.tif\")\n",
+				"    out_raster = None",
 			sep=""),
 			env=rpygeo_env, 
 			add.gp=FALSE, 
@@ -147,7 +160,16 @@ arcgis_zonal <- function(raster_file, census_file, mask_file="", stat="MEAN") {
 		
 		##	Set our raster_file to our masked file:
 		raster_file <- paste(workspace_dir, "out_raster.tif", sep="/")
+		
+		##	Check to see if there's an error and bail:
+		if (file.exists(paste(workspace_dir, "/rpygeo.msg", sep=""))) {
+			stop("ERROR:  Error in geoprocessing the zonal statistics... Check the .msg file in the geoprocessing working directory!")
+			flush.console()
+
+			return(NULL)
+		}
 	}
+	
 	
 	rpygeo.geoprocessor(
 		paste(
@@ -219,8 +241,7 @@ if (file.exists("census_covariates.shp")) {
   ##    is partially processed and don't load it again.)  You should set the
 	##		doit_var_name argument to the last known successfully processed
 	##		variable:
-  doit <- FALSE
-	doit_var_name <- "roa_prp" 
+  doit <- TRUE
   #doit <- FALSE
 	#doit_var_name <- "roa_dst"
 
@@ -264,12 +285,14 @@ if (file.exists("census_covariates.shp")) {
 		##	If you need to subset or restart you can set doit=FALSE above
 		##		and then set the doit_var to a particular var_name to start at 
 		##		particular place:
- 		if (var_name == doit_var_name) {
- 			doit = TRUE
- 		}
+		if (!doit) {
+			if (var_name == doit_var_name) {
+				doit = TRUE
+			}
+		}
 		if (doit) {
 			if (dataset_summary == "modal" & gsub("cls", "prp", var_name) %in% names(census_data)) {
-				census_data@data[, var_name] <- as.numeric(census_data@data[, gsub("cls", "prp", var_name)] > 0.5)
+				census_data@data[[var_name]] <- as.numeric(census_data@data[[ gsub("cls", "prp", var_name) ]] > 0.5)
 			} else {
 				#output_stats <- zonal(dataset_raster, zonal_raster, stat=dataset_summary)
 				output_stats <- arcgis_zonal(raster_path, zonal_raster_path, mask_file=mask_path, stat=dataset_summary)
@@ -277,16 +300,10 @@ if (file.exists("census_covariates.shp")) {
 				##	NOTE:	We can no longer assume that the ADMINID field is sorted, 
 				##		so we have to do a merge and use the resulting output to match:
 				names(output_stats) <- c("ADMINID", dataset_summary)
-				output_stats <- merge(census_data['ADMINID'], output_stats, by="ADMINID", sort=FALSE)
+				output_stats <- merge(as.data.frame(census_data)['ADMINID'], output_stats, by="ADMINID", sort=FALSE)
 				
-				##	TODO: There seems to be an inconsistency in the way that some
-				##		versions of the zonal function return data.  For Nirav I
-				##		had to use the first line, for all others the second seems
-				##		to work...  I think it may be due to the version of Python
-				##		and ArcGIS associated with ArcGIS 10.1 but I need to test
-				##		further...
-				#census_data@data[, var_name] <- output_stats@data[,2]
-				census_data@data[, var_name] <- output_stats[,2]
+				census_data@data[[var_name]] <- output_stats[,2]
+				
 			}
 		}
 
@@ -320,7 +337,7 @@ y_data <- census_data@data$POPD_PPHA
 
 if (!is.null(fixed_set)) {
   country_old <- fixed_set[1]
-  output_path_tmp <- paste(root_path, "RF/output/", country_old, "/tmp/", sep="")
+  output_path_tmp <- paste(root_path, "/output/", country_old, "/tmp/", sep="")
   
 	##	Load the first listed, existing country and rename its popfit_final:
 	load(file=paste(output_path_tmp, "popfit_final.RData", sep=""))
@@ -328,7 +345,7 @@ if (!is.null(fixed_set)) {
 
   fixed_predictors <- row.names(importance(popfit_final_old))
   
-  output_path_tmp <- paste(root_path, "RF/output/", country, "/tmp/", sep="")
+  output_path_tmp <- paste(root_path, "/output/", country, "/tmp/", sep="")
 } else {
   fixed_predictors <- names(covariates)
 }
@@ -658,7 +675,7 @@ if (!is.null(fixed_set)) {
 			index <- 2
 			
 			country_old <- fixed_set[1] 
-			output_path_tmp <- paste(root_path, "RF/output/", country_old, "/tmp/", sep="")
+			output_path_tmp <- paste(root_path, "/output/", country_old, "/tmp/", sep="")
 			load(file=paste(output_path_tmp, "popfit_final.RData", sep=""))
 			popfit_final_combined <- popfit_final
 			load(file=paste(output_path_tmp, "popfit_quant.RData", sep=""))
@@ -670,15 +687,30 @@ if (!is.null(fixed_set)) {
 			country_old <- fixed_set[index] 
 
 			if (country_old != country) {
-				output_path_tmp <- paste(root_path, "RF/output/", country_old, "/tmp/", sep="")
+				output_path_tmp <- paste(root_path, "/output/", country_old, "/tmp/", sep="")
 				load(file=paste(output_path_tmp, "popfit_final.RData", sep=""))
 				popfit_final_old <- popfit_final
 				load(file=paste(output_path_tmp, "popfit_quant.RData", sep=""))
 				popfit_quant_old <- popfit_quant
 
+				##	NOTE: There seems to be a bug combining forests for models
+				##		based on different numbers of observations.  Therefore, to
+				##		get this to work correctly, we're going to set the proximity
+				##		and predicted attributes to NULL and 0 respectively before
+				##		combining:
+				popfit_final_combined$proximity <- NULL
+        popfit_final_combined$predicted <- 0
+        popfit_final_old$proximity <- NULL
+        popfit_final_old$predicted <- 0
+				
+        popfit_quant_combined$predicted <- 0
+        popfit_quant_old$predicted <- 0
+				
 				popfit_final_combined <- combine(popfit_final_combined, popfit_final_old)
-				popfit_quant <- combine(popfit_quant_combined, popfit_quant_old)
+        popfit_quant_combined <- combine(popfit_quant_combined, popfit_quant_old)
 			}
+			
+			index <- index + 1
 		}
 		
 		popfit_final <- popfit_final_combined
@@ -690,7 +722,7 @@ if (!is.null(fixed_set)) {
 		save(popfit_quant, file=paste(output_path_tmp, "popfit_quant_combined.RData", sep=""))
 		#load(file=paste(output_path_tmp, "popfit_quant_combined.RData", sep=""))
 		
-		output_path_tmp <- paste(root_path, "RF/output/", country, "/tmp/", sep="")
+		output_path_tmp <- paste(root_path, "/output/", country, "/tmp/", sep="")
 	}
 }
 
@@ -1029,6 +1061,11 @@ endCluster()
 ##	Save the workspace:
 #save.image(file=paste(output_path, "tmp", "00.2_image.RData", sep="/"))
 #load(file=paste(output_path, "tmp", "00.2_image.RData", sep="/"))
+
+
+##	Return our working directory to the source folder:
+setwd(paste(root_path, "src", sep=""))
+
 
 ##	END:	Predict for gridded covariates
 #####

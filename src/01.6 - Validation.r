@@ -11,14 +11,14 @@
 ##		so the paths may be incorrect if specified incorrectly inside that
 ##		file!
 
-##	Configure the country abbreviation and name:
-country <- "KHM_002"
 
-##	This should be set to the folder *containing* the "RF" folder structure:
-root_path <- "D:/Documents/Graduate School/Research/Population/Data/"
-project_path <- paste(root_path, "RF/data/", country, "/", sep="")
+##	Parse main configuration file, which will set the country and root_path
+##		variables:
+source("01.0 - Configuration.py.r")
+
 
 ##	Load the metadata from the file created in the country's /data folder:
+project_path <- paste(root_path, "/data/", country, "/", sep="")
 source(paste(project_path, "Metadata.r", sep=""))
 
 ##	END:	Load configuration options
@@ -32,7 +32,7 @@ source(paste(project_path, "Metadata.r", sep=""))
 ##	NOTE:	This script assumes that you have prepared output at a coarse
 ##		level with which to compare to census data in a country as specified
 ##		here.
-country_comp <- "KHM"
+country_comp <- "THA_005"
 
 ##	END:	Validation configuration options
 #####
@@ -61,24 +61,35 @@ require(ggplot2)
 
 ##	Parameters and defaults:
 
+##	Set the path to the Python location which has access to ArcGIS 
+##		Geoprocessing facilities.  As long as you're running RStudio using
+##		the batch file to start it the ARCPY environment variable should
+##		contain the appropriate path:
+#python_path <- "C:/Python26/ArcGIS10.0"
+python_path <- Sys.getenv("ARCPY")
+
 
 ##	Setup output paths for the coarse level and project paths for the
 ##		finest level census data:
-
-##	Default coarse level output (for automated output from my scripts):
-output_file <- paste(output_path, country, "_popmap_v", version, ".tif", sep="")
-
 
 ##	Default census file for the finest level available (folder is the country
 ##		code listed without a level of aggregation):
 
 ##	This should be set to the folder *containing* the "RF" folder structure:
-project_path_comp <- paste(root_path, "RF/data/", country_comp, "/", sep="")
+project_path_comp <- paste(root_path, "data/", country_comp, "/", sep="")
 
 
 dataset_name <- list.files(paste(project_path_comp, "Census/", sep=""),  "shp$")
 census_file <- paste(project_path_comp, "Census/", dataset_name, sep="")
 
+##	Read census data to determine year of coarser map output to 
+##		pull for comparison:
+census_data <- readOGR(dsn=paste(project_path_comp, "Census", sep=""), substr(dataset_name, 1, nchar(dataset_name)-4))
+census_year <- census_data[["YEARPOP"]][1]
+
+
+##	Default coarse level output (for automated output from my scripts):
+output_file <- paste(output_path, country, "_ppp_v", rf_version, "_", census_year, ".tif", sep="")
 
 ##	END:	Package loading and configuration
 #####
@@ -131,7 +142,7 @@ zonal_points_extract <- paste(workspace_dir, "/census_zones_points_extract.shp",
 ##		just fine.  So I've switched back to using the custom zonal statistics
 ##		as the process is *much* faster than the zonal() approach:
 
-rpygeo_env <- rpygeo.build.env(extensions="Spatial", python.path="C:/Python26/ArcGIS10.0", python.command="python.exe", workspace=workspace_dir, overwriteoutput=1)
+rpygeo_env <- rpygeo.build.env(extensions="Spatial", python.path=python_path, python.command="python.exe", workspace=workspace_dir, overwriteoutput=1)
 
 rpygeo.geoprocessor(
 	paste(
@@ -185,8 +196,8 @@ mae
 ##	Scatterplot of data:
 #qplot(predicted, observed)
 
-png(file=paste(output_path, "predicted_vs_observed_v", pop_version, ".png", sep=""))
-plot(y=predicted, x=observed, col=rgb(0,0,0,0.2), xlim=c(min(c(observed, predicted)), max(c(observed, predicted))), ylim=c(min(c(observed, predicted)), max(c(observed, predicted))), xlab="Observed", ylab="Predicted", pch=16, cex=0.7, main=paste(country, "_", aggregation_level, sub_data, sep=""))
+png(file=paste(output_path, "predicted_vs_observed_v", rf_version, ".png", sep=""))
+plot(y=predicted, x=observed, col=rgb(0,0,0,0.2), xlim=c(min(c(observed, predicted)), max(c(observed, predicted))), ylim=c(min(c(observed, predicted)), max(c(observed, predicted))), xlab="Observed", ylab="Predicted", pch=16, cex=0.7, main=paste(country, " vs. ", country_comp, sep=""))
 abline(a=0, b=1, lty=2, col="darkgrey")
 
 text(y=max(c(observed, predicted))/10*4, x=max(c(observed, predicted))/10*5.5, paste("RMSE: ", format(rmse, nsmall=2), sep=""), pos=4)
@@ -196,12 +207,16 @@ dev.off()
 
 
 ##	Repeat the plot for visualizing in R:
-plot(y=predicted, x=observed, col=rgb(0,0,0,0.2), xlim=c(min(c(observed, predicted)), max(c(observed, predicted))), ylim=c(min(c(observed, predicted)), max(c(observed, predicted))), xlab="Observed", ylab="Predicted", pch=16, cex=0.7, main=paste(country, "_", aggregation_level, sub_data, sep=""))
+plot(y=predicted, x=observed, col=rgb(0,0,0,0.2), xlim=c(min(c(observed, predicted)), max(c(observed, predicted))), ylim=c(min(c(observed, predicted)), max(c(observed, predicted))), xlab="Observed", ylab="Predicted", pch=16, cex=0.7, main=paste(country, " vs. ", country_comp, sep=""))
 abline(a=0, b=1, lty=2, col="darkgrey")
 
 text(y=max(c(observed, predicted))/10*4, x=max(c(observed, predicted))/10*5.5, paste("RMSE: ", format(rmse, nsmall=2), sep=""), pos=4)
 text(y=max(c(observed, predicted))/10*3, x=max(c(observed, predicted))/10*5.5, paste("%RMSE: ", format(pct_rmse, nsmall=2), sep=""), pos=4)
 text(y=max(c(observed, predicted))/10*2, x=max(c(observed, predicted))/10*5.5, paste("MAE: ", format(mae, nsmall=2), sep=""), pos=4)
+
+
+##	Return our working directory to the source folder:
+setwd(paste(root_path, "src", sep=""))
 
 
 ##	END:	Validation of data and output:

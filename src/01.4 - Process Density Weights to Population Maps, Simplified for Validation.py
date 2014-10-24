@@ -30,27 +30,9 @@
 #####
 ##	BEGIN:	Set per-country configuration options
 
-country = "KHM"
-#country = "KHM_002"
-#country = "KHM_002_Anc"
-
-
-##	Configure project and default data folders:
-root_path = "D:/Documents/Graduate School/Research/Population/Data/"
-#root_path = "C:/Users/forrest/Research/Population/Data/"
-#root_path = "D:/Research/Population/Data/"
-
-data_path = root_path + "RF/data/" + country + "/"
-output_path = root_path + "RF/output/" + country + "/"
-tmp_path = output_path + "tmp/"
-
-
-##	TODO: Eventually this can be set in the Metadata.r file and pulled
-##		via JSON but for now we will set it here:
-
-##	Versioning information:
-version = "2b"
-
+##	Parse main configuration file, which will set the country and root_path
+##		variables:
+execfile("01.0 - Configuration.py.r")
 
 ##	END:	Set per-country configuration options
 #####
@@ -59,7 +41,7 @@ version = "2b"
 
 #####
 ##	NOTICE:  In practice nothing below this line should need to be regularly
-##		edited unless very specific details need to be changed about the 
+##		edited unless very specific details need to be changed about the
 ##		modeling process (e.g. speciyfing an extent or something detailed
 ##		about the Python processing).
 #####
@@ -68,6 +50,10 @@ version = "2b"
 
 #####
 ##	BEGIN:	Set general configuration options
+
+data_path = root_path + "/data/" + country + "/"
+output_path = root_path + "/output/" + country + "/"
+tmp_path = output_path + "tmp/"
 
 
 ##	Input projection is configured for each country based on the most
@@ -129,20 +115,41 @@ def ensure_dir(d):
 #####
 ##	BEGIN: Data pre-processing for needed datasets
 
+
+##	Get a list of all existing folders in the country's data folder:
+dataset_folders = os.walk(data_path).next()[1]
+
+
+##	Check to see if an alternative census folder exists in the folder list
+##		and use it for processing our maps.
+##	TODO:  Eventually this needs to be pulled from the Metadata.R file
+##		instead of a hard coded directory presence.
+if ("! New Census" in dataset_folders):
+	census_folder = "! New Census"
+else:
+	census_folder = ""
+
+
 ##	Datasets:
-##	Estimated population density from randomForest to be used as density 
+##	Estimated population density from randomForest to be used as density
 ##		weightings (gridx) from the old model:
 popdensity_weighting = output_path + "predict_density.img"
 
+
 ##	Population data
+if census_folder != "":
+	census_path = data_path + census_folder + "/"
+else:
+	census_path = data_path + "Census/"
+
+
 ##	Instead of hardcoding it above we'll just pull in the only shapefile
 ##		that should be in the directory:
-census_path = data_path + "Census/"
 dataset_name = os.path.basename( glob.glob( census_path + "*.shp" )[0] )
 adminpop = census_path + dataset_name
 
 
-##	NOTE: To properly set the extent we need to query the description of 
+##	NOTE: To properly set the extent we need to query the description of
 ##		the shapefile by hand, for some reason setting the extent directly
 ##		to the name of a dataset doesn't work...
 desc = arcpy.Describe(adminpop)
@@ -161,7 +168,7 @@ arcpy.env.workspace = ensure_dir(tmp_path)
 #####
 ##	BEGIN: Population map creation
 
-print ("PREPROCESS: Finalized density weights...")
+print("PREPROCESS: Finalized density weights...")
 
 ##	Project our predicted density weighting file back to GCS1984:
 in_path = popdensity_weighting
@@ -174,13 +181,15 @@ input_prj = data_desc.SpatialReference.exportToString()
 
 arcpy.ProjectRaster_management(in_path,out_path,final_prj,"BILINEAR","0.0008333","#","#",input_prj)
 
-##	Set our snapping environment to our new, reprojected and 
+##	Set our snapping environment to our new, reprojected and
 ##		majority resampled land cover file:
 popdensity_weighting_final = out_path
 arcpy.env.snapRaster = out_path
 
 
 
+##	Create a temporary copy of our census data with an appropriate
+##		population field to sum and distribute:
 if (arcpy.Exists("admin") == False): arcpy.MakeFeatureLayer_management(adminpop, "admin")
 arcpy.FeatureClassToFeatureClass_conversion('admin', arcpy.env.workspace, 'admin_Union')
 if (arcpy.Exists("admin_Union") == False): arcpy.MakeFeatureLayer_management("/admin_Union.shp", "admin_Union")
@@ -191,21 +200,42 @@ arcpy.CalculateField_management('admin_Union', 'POP', ' [ADMINPOP] ', '')
 
 
 
-##	Population redistribution procedure using population from "admin_Union.shp" 
+##	Population redistribution procedure using population from "admin_Union.shp"
 ##		converted to a raster and redistributed according to our weights:
-print ("POPMAP: Begin creating population redistribution...")
-print ("POPMAP: Using census file - " + dataset_name)
+print("POPMAP: Begin creating population redistribution...")
+print("PPP: Using census file - " + dataset_name)
+
+
+##	Read the first row of the attribute table from our census data to
+##		determine the year of our census data:
+rows = arcpy.SearchCursor(adminpop)
+row = rows.next()
+census_year = row.YEARPOP
+
 
 gridp = arcpy.FeatureToRaster_conversion('admin_Union', 'POP', 'gridp.img', '0.0008333')
 gridy = arcpy.sa.ZonalStatistics('admin_Union', 'ADMINID', popdensity_weighting_final, 'SUM', 'DATA')
 
+print("PPP: Calculating People Per Pixel " + str(census_year))
 popmap = gridp * Raster(popdensity_weighting_final) / gridy
-popmap.save(output_path + "/" + country + "_popmap_v" + version + ".tif")
 
-print ("POPMAP: Completed!")
+##	NOTE: So there's a bug in the arcpy raster optimization that 
+##		often, even though you're specifying the .save() option will not
+##		actually write it out to disk until it thinks that you're really
+##		removing it from memory.  To force this to happen across versions
+##		of ArcGIS and arcpy set the raster object to None like this.
+##		Discovered here:
+##			http://gis.stackexchange.com/questions/46897/saving-rasters-in-a-python-for-loop-fails-only-on-last-iteration
+outPath = output_path + country + "_ppp_v" + rf_version + "_" + str(census_year) + ".tif"
+popmap.save(outPath)
+popmap = None
+popmap = Raster(outPath)
 
 
-print ("COMPLETED:  Succesffully created population map outputs!")
+print("POPMAP: Completed!")
+
+
+print("COMPLETED:  Succesffully created population map outputs!")
 
 ##	BEGIN: Population map creation
 #####

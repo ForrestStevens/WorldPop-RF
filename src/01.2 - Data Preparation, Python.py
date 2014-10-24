@@ -1,37 +1,50 @@
 #####
 ##	BEGIN:	Set per-country configuration options
 
-country = "NGA"
-#country = "KHM_002"
-#country = "KHM_002_Anc"
-
-
-##	Configure project and default data folders:
-root_path = "D:/Documents/Graduate School/Research/Population/Data/"
-#root_path = "C:/Users/forrest/Research/Population/Data/"
-#root_path = "D:/Research/Population/Data/"
-
-
-##	NOTE: This needs to be adjusted depending on whether we are in
-##		the Asia/Australia region or whether we are in the Africa/America
-##		region.  If you are processing a large country that does not fall
-##		*completely* within one of he VMAP0 data regions then you should
-##		either merge the datasets by hand or provide alternatives to the 
-##		following default datasets:  "Roads", "Rivers", "Populated"
-#NGA_path = root_path + "GIS/NGA/VMAP0/v0sas_5/vmaplv0/sasaus:"
-NGA_path = root_path + "GIS/NGA/VMAP0/v0soa_5/vmaplv0/soamafr:"
-#NGA_path = root_path + "GIS/NGA/VMAP0/v0noa_5/vmaplv0/noamer:"
-#NGA_path = root_path + "GIS/NGA/VMAP0/v0eur_5/vmaplv0/eurnasia:"
+##	Parse main configuration file, which will set the country and root_path
+##		variables:
+execfile("01.0 - Configuration.py.r")
 
 
 ##	Output projection is configured for each country based on the most
-##		appropriate output for distance/area considerations:
+##		appropriate output for distance/area considerations.  To find the
+##		string appropriate for this string you should open up the appropriate
+##		projection file (*.prj) in the:
+##				C:\Program Files (x86)\ArcGIS\Desktop10.0\Coordinate Systems\
+##		folder and paste its contents into a string below (or hand edit it
+##		in case a UTM zone needs to be edited, etc.:
+
 ##	For KHM, VNM:
 #intermediate_prj = "PROJCS['WGS_1984_UTM_Zone_48N',GEOGCS['GCS_WGS_1984',DATUM['D_WGS_1984',SPHEROID['WGS_1984',6378137.0,298.257223563]],PRIMEM['Greenwich',0.0],UNIT['Degree',0.0174532925199433]],PROJECTION['Transverse_Mercator'],PARAMETER['False_Easting',500000.0],PARAMETER['False_Northing',0.0],PARAMETER['Central_Meridian',105.0],PARAMETER['Scale_Factor',0.9996],PARAMETER['Latitude_Of_Origin',0.0],UNIT['Meter',1.0]]"
 ##	For KEN:
 #intermediate_prj = "PROJCS['WGS_1984_UTM_Zone_37N',GEOGCS['GCS_WGS_1984',DATUM['D_WGS_1984',SPHEROID['WGS_1984',6378137.0,298.257223563]],PRIMEM['Greenwich',0.0],UNIT['Degree',0.0174532925199433]],PROJECTION['Transverse_Mercator'],PARAMETER['False_Easting',500000.0],PARAMETER['False_Northing',0.0],PARAMETER['Central_Meridian',39.0],PARAMETER['Scale_Factor',0.9996],PARAMETER['Latitude_Of_Origin',0.0],UNIT['Meter',1.0]]"
-##      For NGA:
-intermediate_prj = "PROJCS['WGS_1984_UTM_Zone_32N',GEOGCS['GCS_WGS_1984',DATUM['D_WGS_1984',SPHEROID['WGS_1984',6378137.0,298.257223563]],PRIMEM['Greenwich',0.0],UNIT['Degree',0.0174532925199433]],PROJECTION['Transverse_Mercator'],PARAMETER['False_Easting',500000.0],PARAMETER['False_Northing',0.0],PARAMETER['Central_Meridian',9.0],PARAMETER['Scale_Factor',0.9996],PARAMETER['Latitude_Of_Origin',0.0],UNIT['Meter',1.0],AUTHORITY['EPSG',32632]]"
+##	For NGA:
+#intermediate_prj = "PROJCS['WGS_1984_UTM_Zone_32N',GEOGCS['GCS_WGS_1984',DATUM['D_WGS_1984',SPHEROID['WGS_1984',6378137.0,298.257223563]],PRIMEM['Greenwich',0.0],UNIT['Degree',0.0174532925199433]],PROJECTION['Transverse_Mercator'],PARAMETER['False_Easting',500000.0],PARAMETER['False_Northing',0.0],PARAMETER['Central_Meridian',9.0],PARAMETER['Scale_Factor',0.9996],PARAMETER['Latitude_Of_Origin',0.0],UNIT['Meter',1.0],AUTHORITY['EPSG',32632]]"
+##	For RWA, right on edge of 35S and 36S so modified to 35.5S with meridian 30.0:
+#intermediate_prj = "PROJCS['WGS_1984_UTM_Zone_35.5S',GEOGCS['GCS_WGS_1984',DATUM['D_WGS_1984',SPHEROID['WGS_1984',6378137.0,298.257223563]],PRIMEM['Greenwich',0.0],UNIT['Degree',0.0174532925199433]],PROJECTION['Transverse_Mercator'],PARAMETER['False_Easting',500000.0],PARAMETER['False_Northing',10000000.0],PARAMETER['Central_Meridian',30.0],PARAMETER['Scale_Factor',0.9996],PARAMETER['Latitude_Of_Origin',0.0],UNIT['Meter',1.0],AUTHORITY['EPSG',32735.5]]"
+##	For IDN:
+intermediate_prj = 'PROJCS["Asia_Lambert_Conformal_Conic",GEOGCS["GCS_WGS_1984",DATUM["D_WGS_1984",SPHEROID["WGS_1984",6378137.0,298.257223563]],PRIMEM["Greenwich",0.0],UNIT["Degree",0.0174532925199433]],PROJECTION["Lambert_Conformal_Conic"],PARAMETER["False_Easting",0.0],PARAMETER["False_Northing",0.0],PARAMETER["Central_Meridian",105.0],PARAMETER["Standard_Parallel_1",30.0],PARAMETER["Standard_Parallel_2",62.0],PARAMETER["Latitude_Of_Origin",0.0],UNIT["Meter",1.0],AUTHORITY["ESRI",102012]]'
+
+
+##	Alternative census folder:
+##		This is a census folder other than the one used for the RF model
+##		and predict_density.img file.  If the "! New Census" folder exists
+##		then the census	file in this folder overrides the one in the /Census
+##		folder during final map creation for census counts.  This folder must
+##		be set to "! New Census/" because the reporting procedures need to
+##		be able to tell if a newer census was used or not.  Its derived
+##		products only consist of a reprojected dataset.  This is useful
+##		if you'll using a much more detailed, but older census file to
+##		generate RF model	predictions and want to use more concurrent data
+##		for population	estimates.
+##	NOTE: Setting or changing the below folder name will not affect anything
+##		about how this folder is processed.  It will be processed if it exists
+##		and should not be used if you don't intend for this behavior!!!
+##	TODO:  Eventually this needs to be pulled from the Metadata.R file
+##		instead of a hard coded directory presence.  If this directory exists
+##		then the rest of the scripts (map production and metadata report
+##		will assume it needs to be used.
+#census_folder = "! New Census"
 
 
 ##	Should we skip processing and creation for any existing data sets:
@@ -45,7 +58,7 @@ skip_existing = True
 
 #####
 ##	NOTICE:  In practice nothing below this line should need to be regularly
-##		edited unless very specific details need to be changed about the 
+##		edited unless very specific details need to be changed about the
 ##		modeling process (e.g. speciyfing an extent or something detailed
 ##		about the Python processing).
 #####
@@ -55,17 +68,17 @@ skip_existing = True
 #####
 ##	BEGIN:	Set general configuration options
 
-data_path = root_path + "RF/data/"
-output_path = root_path + "RF/output/"
+data_path = root_path + "/data/"
+output_path = root_path + "/output/"
 
-#Peel_path = root_path + "GIS/Peel Climate Classification/Recoded/"
-WorldClim_path = root_path + "WorldClim/BioClim/"
+VMAP0_path = data_path + "/! Defaults/VMAP0/"
+WorldClim_path = data_path + "/! Defaults/WorldClim/"
+HydroSHEDS_path = data_path + "/! Defaults/HydroSHEDS/"
+WDPA_path = data_path + "/! Defaults/Protected Areas/"
+UrbExtents_path = data_path + "/! Defaults/Urban Extents/"
 
-HydroSHEDS_path = root_path + "HydroSHEDS/Void-Filled DEM/"
-WDPA_path = root_path + "GIS/Protected Areas/"
-
-#NightLights_path = root_path + "NASA Night Lights/"
-NightLights_path = root_path + "NASA Night Lights, Unprocessed/"
+#NightLights_path = data_path + "/! Defaults/NASA Night Lights/"
+NightLights_path = data_path + "/! Defaults/NASA Night Lights, Unprocessed/"
 
 ##	END:	Set general configuration options
 #####
@@ -111,49 +124,98 @@ def ensure_dir(d):
 
 def process_linear(dataset_folder):
 	##	Create distance rasters for each of our feature classes of interest:
-	
+
 	dataset_folder = dataset_folder
 	dataset_name = dataset_folder.lower()
 
 	print("PROCESSING:  " + dataset_name + " Distance")
 	outPath = data_path + country + "/" + dataset_folder + "/Derived/" + dataset_name + "_dst" +".tif"
-	
+
 	if not os.path.isfile(outPath) or not skip_existing:
 		outRas = arcpy.sa.EucDistance(data_path + country + "/" + dataset_folder + "/Derived/" + dataset_name + ".shp")
 		outRas.save(outPath)
 
+		##	NOTE: So there's a bug in the arcpy raster optimization that
+		##		often, even though you're specifying the .save() option will not
+		##		actually write it out to disk until it thinks that you're really
+		##		removing it from memory.  To force this to happen across versions
+		##		of ArcGIS and arcpy set the raster object to None like this.
+		##		Discovered here:
+		##			http://gis.stackexchange.com/questions/46897/saving-rasters-in-a-python-for-loop-fails-only-on-last-iteration
+		outRas = None
+
 
 def process_point_area(dataset_folder):
 	##	Process select feature data into binary masks, distance-to
-	##		and proportions per	81 hectares (11 x 11 cell moving window, 
+	##		and proportions per	81 hectares (11 x 11 cell moving window,
 	##		specified as a NbrCircle with radius 5):
-	
+
 	dataset_folder = dataset_folder
 	dataset_name = dataset_folder.lower()
 
 	print("PROCESSING:  " + dataset_folder + " Features")
 
 	##	Use FID to create output raster from our features:
+	##	NOTE:  This is one more kludge-y workaround for ArcGIS and arcpy
+	##		bugginess.  For most cases except very large rasters like when 
+	##		dealing with China or Indonesia using one raster file for the 
+	##		post-feater-to-raster conversion seems to work.  But Python just
+	##		bails for some large raster-cases.  Therefore we have to use this
+	##		series of tmpRas objects in addition to the setting of things to
+	##		None for the post-conversion process.  Hopefully one of these days
+	##		we can remove this workaround...
+	##			http://forums.arcgis.com/threads/81281-quot-python.exe-has-stopped-working-quot-on-raster.save
+	tmpRas1 = data_path + country + "/" + dataset_folder + "/Derived/" + dataset_name + "_FID_tmp.tif"
+	tmpRas2 = data_path + country + "/" + dataset_folder + "/Derived/" + dataset_name + "_FID.tif"
 	tmpRas = data_path + country + "/" + dataset_folder + "/Derived/" + dataset_name + "_FID.tif"
 
-	if not os.path.isfile(tmpRas) or not skip_existing:
-		##	See note below about PolygonToRaster and it not respecting the 
+	if not os.path.isfile(tmpRas2) or not skip_existing:
+		##	See note below about PolygonToRaster and it not respecting the
 		##		snap-to raster environment... Same here with all FeatureToRaster
 		##		calls...
-		arcpy.FeatureToRaster_conversion(data_path + country + "/" + dataset_folder + "/Derived/" + dataset_name + ".shp", "FID", tmpRas, 100)
+
+		##	Also, in ArcGIS 10.1 there's a bug with in FeatureRoRaster and
+		##		other raster conversion algorithms that creates blocks of 0
+		##		data in areas that occur outside the set processing extent.  I've
+		##		found only one workaround and that's to remove the processing
+		##		extent, perform the conversion, and then reset the processing
+		##		extent, after which do a simple calculation on the converted
+		##		raster and save that as our output.  It's quite gankty but for
+		##		10.1 I don't know of another workaround.  So instead of:
+		#arcpy.FeatureToRaster_conversion(data_path + country + "/" + dataset_folder + "/Derived/" + dataset_name + ".shp", "FID", tmpRas, 100)
+
+		##		we do this:
+		tmp_extent = arcpy.env.extent
+		arcpy.env.extent = ""
+		outRas = arcpy.FeatureToRaster_conversion(data_path + country + "/" + dataset_folder + "/Derived/" + dataset_name + ".shp", "FID", tmpRas1, 100)
+		print("PROCESSED:  " + dataset_folder + " Feature to Raster")
+		arcpy.env.extent = tmp_extent
+		outRas = None
+		outRas = Raster(tmpRas1) * 1
+		print("PROCESSED:  " + dataset_folder + " Multiplication")
+		outRas.save( tmpRas2 )
+		outRas = None
+		print("PROCESSED:  " + dataset_folder + " Output Saved")
+
 
 		##	Create distance-to raster:
+		outPath = data_path + country + "/" + dataset_folder + "/Derived/" + dataset_name + "_dst.tif"
 		outRas = arcpy.sa.EucDistance(tmpRas)
-		outRas.save(data_path + country + "/" + dataset_folder + "/Derived/" + dataset_name + "_dst.tif")
+		outRas.save(outPath)
+		outRas = None
 
 		##	Save the binary classification raster:
+		outPath = data_path + country + "/" + dataset_folder + "/Derived/" + dataset_name + "_cls.tif"
 		outRas =  IsNull(Raster(tmpRas)) == 0
-		outRas.save(data_path + country + "/" + dataset_folder + "/Derived/" + dataset_name + "_cls.tif")
+		outRas.save(outPath)
+		outRas = None
 
 		##	Calculate proportion of cover:
+		outRas = Raster(outPath)
 		#outRas = arcpy.sa.FocalStatistics(outRas,NbrRectangle(11,11,"CELL"),"MEAN","DATA")
 		outRas = arcpy.sa.FocalStatistics(outRas,NbrCircle(5,"CELL"),"MEAN","DATA")
 		outRas.save(data_path + country + "/" + dataset_folder + "/Derived/" + dataset_name + "_prp.tif")
+		outRas = None
 
 
 def process_raster_binary(dataset_folder):
@@ -163,7 +225,7 @@ def process_raster_binary(dataset_folder):
 	#	Clip and project our built raster:
 	print("PROCESSING:  " + dataset_folder)
 
-	#	Instead of hardcoding it above we'll look for a custom TIF or IMG 
+	#	Instead of hardcoding it above we'll look for a custom TIF or IMG
 	#		file that should be in the directory:
 	dataset_path = (glob.glob( data_path + country + "/" + dataset_folder + "/" + "*.img" ) + glob.glob( data_path + country + "/" + dataset_folder + "/" + "*.tif" ))
 	if dataset_path:
@@ -181,7 +243,7 @@ def process_raster_binary(dataset_folder):
 	data_desc = arcpy.Describe(in_path)
 	input_prj = data_desc.SpatialReference.exportToString()
 
-	
+
 	if not os.path.isfile(out_path) or not skip_existing:
 		arcpy.ProjectRaster_management(in_path,out_path,intermediate_prj,"NEAREST","100","#","#",input_prj)
 
@@ -191,6 +253,7 @@ def process_raster_binary(dataset_folder):
 
 		out_path = out_path[:-8] + "_prp.tif"
 		outRas.save(out_path)
+		outRas = None
 
 
 		print("Distance:  " + dataset_folder)
@@ -200,6 +263,7 @@ def process_raster_binary(dataset_folder):
 
 		out_path = out_path[:-8] + "_dst.tif"
 		outRas.save(out_path)
+		outRas = None
 
 
 def process_raster_continuous(dataset_folder):
@@ -209,7 +273,7 @@ def process_raster_continuous(dataset_folder):
 	#	Clip and project our built raster:
 	print("PROCESSING:  " + dataset_folder)
 
-	#	Instead of hardcoding it above we'll look for a custom TIF or IMG 
+	#	Instead of hardcoding it above we'll look for a custom TIF or IMG
 	#		file that should be in the directory:
 	dataset_path = (glob.glob( data_path + country + "/" + dataset_folder + "/" + "*.img" ) + glob.glob( data_path + country + "/" + dataset_folder + "/" + "*.tif" ))
 	if dataset_path:
@@ -226,7 +290,7 @@ def process_raster_continuous(dataset_folder):
 
 	data_desc = arcpy.Describe(in_path)
 	input_prj = data_desc.SpatialReference.exportToString()
-	
+
 	if not os.path.isfile(out_path) or not skip_existing:
 		arcpy.ProjectRaster_management(in_path,out_path,intermediate_prj,"NEAREST","100","#","#",input_prj)
 
@@ -256,7 +320,7 @@ metadata = json.load(metadata_json)
 covariates = json.load(covariates_json)
 
 
-##	TODO: I need to configure the covariate processing to respect the 
+##	TODO: I need to configure the covariate processing to respect the
 ##		covariate and processing flags for each metadata section.  Right now
 ##		all default outputs are generated depending on the output type
 ##		(ShapeFile, binary raster, continuous raster, etc.):
@@ -277,7 +341,7 @@ dataset_folders = os.walk(data_path + country + "/").next()[1]
 ##		file:
 
 ##	First we check to see if the "Census" folder exists, and if not throw
-##		an error and exit().  If it does, remove it from the list of 
+##		an error and exit().  If it does, remove it from the list of
 ##		directories to process and proceed:
 if not ("Census" in dataset_folders):
 	print("ERROR:  No \"Census\" folder found!  This is required and indicates you possibly did not run the \"Data Preparation, R.r\" script or specify configuration options correctly in this Python processing script!")
@@ -337,11 +401,50 @@ if not os.path.isfile(buffer_path) or not skip_existing:
 ##	Set the output coordinate system and extent to that of our buffer:
 arcpy.env.outputCoordinateSystem = buffer_path
 
-##	NOTE: To properly set the extent we need to query the description of 
+##	NOTE: To properly set the extent we need to query the description of
 ##		the shapefile by hand, for some reason setting the extent directly
 ##		to the name of a dataset doesn't work...
 desc = arcpy.Describe(buffer_path)
 arcpy.env.extent = desc.Extent
+
+
+
+##	Now we need to process an alternative census folder if specified
+##		above.  This is used in the case of having a finely detailed
+##		census file located in our /Census folder with which we want to
+##		estimate our RF model, but we want to redistribute counts based
+##		on a coarser census file:
+if ("! New Census" in dataset_folders):
+	dataset_folder = "! New Census"
+
+	##	Project census data:
+	print("PROCESSING:  " + dataset_folder)
+
+	tmp_path = ensure_dir(data_path + country + "/" + dataset_folder)
+
+	##	Instead of hardcoding it above we'll just pull in the only shapefile
+	##		that should be in the directory:
+	dataset_path = glob.glob( tmp_path + "/" + "*.shp" )
+	if dataset_path:
+		dataset_name = os.path.basename( dataset_path[0] )
+	else:
+		print("ERROR:  No census file found!")
+		exit()
+
+	in_path = tmp_path + "/" + dataset_name
+
+	output_name = "census.shp"
+	tmp_path = ensure_dir(data_path + country + "/" + dataset_folder + "/Derived")
+	out_path = tmp_path + "/" + output_name
+
+	data_desc = arcpy.Describe(in_path)
+	input_prj = data_desc.SpatialReference.exportToString()
+
+	if not os.path.isfile(out_path) or not skip_existing:
+		tmp_extent = arcpy.env.extent
+		arcpy.env.extent = ""
+		arcpy.Project_management(in_path, out_path, intermediate_prj,"#",input_prj)
+		arcpy.env.extent = tmp_extent
 
 
 
@@ -355,7 +458,7 @@ else :
 dataset_folder = "Landcover"
 print("PROCESSING:  " + dataset_folder)
 
-##	Instead of hardcoding it above we'll just pull in the only TIF or IMG 
+##	Instead of hardcoding it above we'll just pull in the only TIF or IMG
 ##		file that should be in the directory:
 dataset_path = (glob.glob( data_path + country + "/" + dataset_folder + "/" + "*.img" ) + glob.glob( data_path + country + "/" + dataset_folder + "/" + "*.tif" ))
 if dataset_path:
@@ -406,6 +509,7 @@ for lc in ['011', '040', '130', '140', '150', '160', '190', '200', '210', '230',
 	if not os.path.isfile(out_path) or not skip_existing:
 		outRas =  Raster(landcover_path) == int(lc)
 		outRas.save(out_path)
+		outRas = None
 
 	in_path = out_path
 	out_path = landcover_path[:-4] + "_prp" + lc + ".tif"
@@ -413,6 +517,7 @@ for lc in ['011', '040', '130', '140', '150', '160', '190', '200', '210', '230',
 		#outRas = arcpy.sa.FocalStatistics(in_path,NbrRectangle(11,11,"CELL"),"MEAN","DATA")
 		outRas = arcpy.sa.FocalStatistics(in_path,NbrCircle(5,"CELL"),"MEAN","DATA")
 		outRas.save(out_path)
+		outRas = None
 
 
 ##	Process land cover combinations of interest:
@@ -424,6 +529,7 @@ out_path = landcover_path[:-4] + "_cls" + lc + ".tif"
 if not os.path.isfile(out_path) or not skip_existing:
 	outRas =  (Raster(landcover_path) == 190) + (Raster(landcover_path) == 240)
 	outRas.save(out_path)
+	outRas = None
 
 
 in_path = out_path
@@ -433,6 +539,7 @@ if not os.path.isfile(out_path) or not skip_existing:
 	#outRas = arcpy.sa.FocalStatistics(in_path,NbrRectangle(11,11,"CELL"),"MEAN","DATA")
 	outRas = arcpy.sa.FocalStatistics(in_path,NbrCircle(5,"CELL"),"MEAN","DATA")
 	outRas.save(out_path)
+	outRas = None
 
 
 
@@ -440,26 +547,27 @@ if not os.path.isfile(out_path) or not skip_existing:
 for lc in ['011', '040', '130', '140', '150', '160', '190', '200', '210', '230', '240', '250', 'BLT']:
 	print("Distance:  " + lc)
 	out_path = landcover_path[:-4] + "_dst" + lc + ".tif"
-	
+
 	if not os.path.isfile(out_path) or not skip_existing:
 		lcRas = Raster(landcover_path[:-4] + "_cls" + lc + ".tif")
 		tmpRas =  SetNull(lcRas != 1, 1)
 		outRas = arcpy.sa.EucDistance(tmpRas)
 
 		outRas.save(out_path)
+		outRas = None
 
 
 
 if ("NPP" in dataset_folders):
 	dataset_folders.remove("NPP")
-	
+
 	##	Clip and project our MODIS-derived NPP raster:
 	dataset_folder = "NPP"
 	print("PROCESSING:  " + dataset_folder)
 
 	#dataset_name = "MOD17A3.A2010001.055.Npp_1km.tif"
 
-	##	Instead of hardcoding it above we'll just pull in the only TIF or IMG 
+	##	Instead of hardcoding it above we'll just pull in the only TIF or IMG
 	##		file that should be in the directory:
 	dataset_path = (glob.glob( data_path + country + "/" + dataset_folder + "/" + "*.img" ) + glob.glob( data_path + country + "/" + dataset_folder + "/" + "*.tif" ))
 	if dataset_path:
@@ -510,12 +618,13 @@ if ("NPP" in dataset_folders):
 		out_path = tmp_path + "/" + output_name
 
 		outCon.save(out_path)
+		outCon = None
 
 
 
 if ("Lights" in dataset_folders):
 	dataset_folders.remove("Lights")
-	
+
 	##	Clip and project our NASA Night Lights raster:
 	dataset_folder = "Lights"
 	print("PROCESSING:  " + dataset_folder)
@@ -560,7 +669,7 @@ if ("Lights" in dataset_folders):
 		arcpy.env.snapRaster = ""
 
 
-		##	Now that we can clip without any automatic reprojection occurring, we 
+		##	Now that we can clip without any automatic reprojection occurring, we
 		##		clip using our census buffer as our boundary extent:
 		arcpy.Clip_management(in_path,"#",mosaic_path,buffer_path,"#","NONE")
 		print("	FINISHED: Mosaic...")
@@ -621,12 +730,12 @@ if not os.path.isfile(out_path) or not skip_existing:
 
 if ("Roads" in dataset_folders):
 	dataset_folders.remove("Roads")
-	
+
 	##	Extract, clip and project roads:
 	dataset_folder = "Roads"
 	print("PROCESSING:  " + dataset_folder)
 
-	##	If a shapefile dataset exists in the folder we'll use it, otherwise we 
+	##	If a shapefile dataset exists in the folder we'll use it, otherwise we
 	##		will pull the default dataset:
 	dataset_path = (glob.glob( data_path + country + "/" + dataset_folder + "/" + "*.shp" ))
 	if dataset_path:
@@ -637,8 +746,8 @@ if ("Roads" in dataset_folders):
 	tmp_path = ensure_dir(data_path + country + "/" + dataset_folder)
 
 	if dataset_name == "":
-		dataset_name = "trans/roadl"
-		in_path = NGA_path + dataset_name
+		dataset_name = "VMAP0.gdb/roadl"
+		in_path = VMAP0_path + dataset_name
 	else:
 		in_path = tmp_path + "/" + dataset_name
 
@@ -647,7 +756,16 @@ if ("Roads" in dataset_folders):
 	out_path = tmp_path + "/" + output_name
 
 	if not os.path.isfile(out_path) or not skip_existing:
+		##	Because ArcGIS 10.1 will process the extent before reprojection
+		##		on the fly (which differs rom 9.3 and 10.0, which will reproject
+		##		and use reprojected coordinates to compare to the provided extent)
+		##		we must set the extent to None here, perform the clip (which
+		##		reprojects on the fly) and then reset the default extent before
+		##		proceeding:
+		tmp_extent = arcpy.env.extent
+		arcpy.env.extent = None
 		arcpy.Clip_analysis(in_path, buffer_path, out_path,"#")
+		arcpy.env.extent = tmp_extent
 
 	process_point_area(dataset_folder)
 
@@ -655,12 +773,12 @@ if ("Roads" in dataset_folders):
 
 if ("Rivers" in dataset_folders):
 	dataset_folders.remove("Rivers")
-	
+
 	##	Extract, clip and project rivers/streams:
 	dataset_folder = "Rivers"
 	print("PROCESSING:  " + dataset_folder)
 
-	##	If a shapefile dataset exists in the folder we'll use it, otherwise we 
+	##	If a shapefile dataset exists in the folder we'll use it, otherwise we
 	##		will pull the default dataset:
 	dataset_path = (glob.glob( data_path + country + "/" + dataset_folder + "/" + "*.shp" ))
 	if dataset_path:
@@ -671,8 +789,8 @@ if ("Rivers" in dataset_folders):
 	tmp_path = ensure_dir(data_path + country + "/" + dataset_folder)
 
 	if dataset_name == "":
-		dataset_name = "hydro/watrcrsl"
-		in_path = NGA_path + dataset_name
+		dataset_name = "VMAP0.gdb/watrcrsl"
+		in_path = VMAP0_path + dataset_name
 	else:
 		in_path = data_path + country + "/" + dataset_folder + "/" + dataset_name
 
@@ -681,20 +799,24 @@ if ("Rivers" in dataset_folders):
 	out_path = tmp_path + "/" + output_name
 
 	if not os.path.isfile(out_path) or not skip_existing:
+		##	See note above about clipping and process extent in ArcGIS 10.1:
+		tmp_extent = arcpy.env.extent
+		arcpy.env.extent = None
 		arcpy.Clip_analysis(in_path, buffer_path, out_path,"#")
-	
+		arcpy.env.extent = tmp_extent
+
 	process_point_area(dataset_folder)
 
 
 
 if ("Waterbodies" in dataset_folders):
 	dataset_folders.remove("Waterbodies")
-	
+
 	##	Extract, clip and project water bodies:
 	dataset_folder = "Waterbodies"
 	print("PROCESSING:  " + dataset_folder)
 
-	##	If a shapefile dataset exists in the folder we'll use it, otherwise we 
+	##	If a shapefile dataset exists in the folder we'll use it, otherwise we
 	##		will pull the default dataset:
 	dataset_path = (glob.glob( data_path + country + "/" + dataset_folder + "/" + "*.shp" ))
 	if dataset_path:
@@ -705,8 +827,8 @@ if ("Waterbodies" in dataset_folders):
 	tmp_path = ensure_dir(data_path + country + "/" + dataset_folder)
 
 	if dataset_name == "":
-		dataset_name = "hydro/inwatera"
-		in_path = NGA_path + dataset_name
+		dataset_name = "VMAP0.gdb/inwatera"
+		in_path = VMAP0_path + dataset_name
 	else:
 		in_path = data_path + country + "/" + dataset_folder + "/" + dataset_name
 
@@ -715,20 +837,25 @@ if ("Waterbodies" in dataset_folders):
 	out_path = tmp_path + "/" + output_name
 
 	if not os.path.isfile(out_path) or not skip_existing:
+		##	See note above about clipping and process extent in ArcGIS 10.1:
+		tmp_extent = arcpy.env.extent
+		arcpy.env.extent = None
 		arcpy.Clip_analysis(in_path, buffer_path, out_path,"#")
-	
+		arcpy.env.extent = tmp_extent
+
+
 	process_point_area(dataset_folder)
 
 
 
 if ("Populated" in dataset_folders):
 	dataset_folders.remove("Populated")
-	
+
 	##	Process populated areas dataset(s):
 	dataset_folder = "Populated"
 	print("PROCESSING:  " + dataset_folder)
 
-	##	If a shapefile dataset exists in the folder we'll use it, otherwise we 
+	##	If a shapefile dataset exists in the folder we'll use it, otherwise we
 	##		will pull the default dataset:
 	dataset_path = (glob.glob( data_path + country + "/" + dataset_folder + "/" + "*.shp" ))
 	if dataset_path:
@@ -738,52 +865,77 @@ if ("Populated" in dataset_folders):
 
 	if dataset_name == "":
 		tmp_path = ensure_dir(data_path + country + "/" + dataset_folder + "/Derived")
-		
+
 		output_name = "populated.shp"
 		out_path = tmp_path + "/" + output_name
-		
+
 		if not os.path.isfile(out_path) or not skip_existing:
 
 			##	Set an empty string to hold the list of area-based datasets to merge at the end of this:
 			merge_paths = ""
 
-			
+
 			##	Extract, clip and project miscellaneous populated point locations and built areas:
-			
-			dataset_name = "pop/builtupa"
-			in_path = NGA_path + dataset_name
+
+			dataset_name = "VMAP0.gdb/builtupa"
+			in_path = VMAP0_path + dataset_name
 			output_name = "populated_builtupa.shp"
 			out_path = tmp_path + "/" + output_name
+
+			##	See note above about clipping and process extent in ArcGIS 10.1:
+			tmp_extent = arcpy.env.extent
+			arcpy.env.extent = None
 			arcpy.Clip_analysis(in_path, buffer_path, out_path,"#")
+			arcpy.env.extent = tmp_extent
+
 			merge_paths += "'" + out_path + "';"
 
+
 			##	Removed because it doesn't exist in the South America/Africa VMAP0
 			##		data layers:
-			#dataset_name = "pop/mispopa"
-			#in_path = NGA_path + dataset_name
+			#dataset_name = "VMAP0.gdb/mispopa"
+			#in_path = VMAP0_path + dataset_name
 			#output_name = "populated_mispopa.shp"
 			#out_path = tmp_path + "/" + output_name
+			#
+			###	See note above about clipping and process extent in ArcGIS 10.1:
+			#tmp_extent = arcpy.env.extent
+			#arcpy.env.extent = None
 			#arcpy.Clip_analysis(in_path, buffer_path, out_path,"#")
+			#arcpy.env.extent = tmp_extent
+			#
 			#merge_paths += "'" + out_path + "';"
 
-			
+
 			##	Removed because it doesn't exist in the South America/Africa VMAP0
 			##		data layers:
-			#dataset_name = "pop/builtupp"
-			#in_path = NGA_path + dataset_name
+			#dataset_name = "VMAP0.gdb/builtupp"
+			#in_path = VMAP0_path + dataset_name
 			#output_name = "populated_builtupp.shp"
 			#out_path = tmp_path + "/" + output_name
+			#
+			###	See note above about clipping and process extent in ArcGIS 10.1:
+			#tmp_extent = arcpy.env.extent
+			#arcpy.env.extent = None
 			#arcpy.Clip_analysis(in_path, buffer_path, out_path,"#")
+			#arcpy.env.extent = tmp_extent
 
-			dataset_name = "pop/mispopp"
-			in_path = NGA_path + dataset_name
+
+			dataset_name = "VMAP0.gdb/mispopp"
+			in_path = VMAP0_path + dataset_name
 			output_name = "populated_mispopp.shp"
 			out_path = tmp_path + "/" + output_name
+
+			##	See note above about clipping and process extent in ArcGIS 10.1:
+			tmp_extent = arcpy.env.extent
+			arcpy.env.extent = None
 			arcpy.Clip_analysis(in_path, buffer_path, out_path,"#")
+			arcpy.env.extent = tmp_extent
+
 
 			##	Buffer built and miscellaneous populated point locations and add
 			##		to the merge list:
-			
+
 			##	Removed because it doesn't exist in the South America/Africa VMAP0
 			##		data layers:
 			#dataset_name = "populated_builtupp.shp"
@@ -792,7 +944,7 @@ if ("Populated" in dataset_folders):
 			#out_path = tmp_path + "/" + output_name
 			#arcpy.Buffer_analysis(in_path, out_path,"100 Meters","FULL","ROUND","NONE","#")
 			#merge_paths += "'" + out_path + "';"
-			
+
 			dataset_name = "populated_mispopp.shp"
 			in_path = tmp_path + "/" + dataset_name
 			output_name = "populated_mispopp_buff.shp"
@@ -810,26 +962,31 @@ if ("Populated" in dataset_folders):
 	else:
 		tmp_path = ensure_dir(data_path + country + "/" + dataset_folder)
 		in_path = tmp_path + "/" + dataset_name
-		
+
 		output_name = "populated.shp"
 		tmp_path = ensure_dir(data_path + country + "/" + dataset_folder + "/Derived")
 		out_path = tmp_path + "/" + output_name
-		
+
 		if not os.path.isfile(out_path) or not skip_existing:
+			##	See note above about clipping and process extent in ArcGIS 10.1:
+			tmp_extent = arcpy.env.extent
+			arcpy.env.extent = None
 			arcpy.Clip_analysis(in_path, buffer_path, out_path,"#")
-	
+			arcpy.env.extent = tmp_extent
+
+
 	process_point_area(dataset_folder)
 
 
 
 if ("Protected" in dataset_folders):
 	dataset_folders.remove("Protected")
-	
+
 	##	Extract by clip and project protected areas:
 	dataset_folder = "Protected"
 	print("PROCESSING:  " + dataset_folder)
 
-	##	If a shapefile dataset exists in the folder we'll use it, otherwise we 
+	##	If a shapefile dataset exists in the folder we'll use it, otherwise we
 	##		will pull the default dataset:
 	dataset_path = (glob.glob( data_path + country + "/" + dataset_folder + "/" + "*.shp" ))
 	if dataset_path:
@@ -850,7 +1007,49 @@ if ("Protected" in dataset_folders):
 	out_path = tmp_path + "/" + output_name
 
 	if not os.path.isfile(out_path) or not skip_existing:
+		##	See note above about clipping and process extent in ArcGIS 10.1:
+		tmp_extent = arcpy.env.extent
+		arcpy.env.extent = None
 		arcpy.Clip_analysis(in_path, buffer_path, out_path,"#")
+		arcpy.env.extent = tmp_extent
+
+	process_point_area(dataset_folder)
+
+
+
+if ("Urban" in dataset_folders):
+	dataset_folders.remove("Urban")
+
+	##	Extract by clip and project urban extent areas (Schneider):
+	dataset_folder = "Urban"
+	print("PROCESSING:  " + dataset_folder)
+
+	##	If a shapefile dataset exists in the folder we'll use it, otherwise we
+	##		will pull the default dataset:
+	dataset_path = (glob.glob( data_path + country + "/" + dataset_folder + "/" + "*.shp" ))
+	if dataset_path:
+		dataset_name = os.path.basename( dataset_path[0] )
+	else:
+		dataset_name = ""
+
+	tmp_path = ensure_dir(data_path + country + "/" + dataset_folder)
+
+	if dataset_name == "":
+		dataset_name = (glob.glob( UrbExtents_path + "/" + "*.shp" ))
+		in_path = dataset_name[0]
+	else:
+		in_path = tmp_path + "/" + dataset_name
+
+	output_name = "urban.shp"
+	tmp_path = ensure_dir(data_path + country + "/" + dataset_folder + "/Derived")
+	out_path = tmp_path + "/" + output_name
+
+	if not os.path.isfile(out_path) or not skip_existing:
+		##	See note above about clipping and process extent in ArcGIS 10.1:
+		tmp_extent = arcpy.env.extent
+		arcpy.env.extent = None
+		arcpy.Clip_analysis(in_path, buffer_path, out_path,"#")
+		arcpy.env.extent = tmp_extent
 
 	process_point_area(dataset_folder)
 
@@ -858,12 +1057,12 @@ if ("Protected" in dataset_folders):
 
 if ("Elevation" in dataset_folders):
 	dataset_folders.remove("Elevation")
-	
+
 	##	Reproject and clip our raster catalog/mosaic of HydroSHEDS tiles:
 	dataset_folder = "Elevation"
 	print("PROCESSING:  " + dataset_folder)
 
-	##	Instead of hardcoding it above we'll look for a custom TIF or IMG 
+	##	Instead of hardcoding it above we'll look for a custom TIF or IMG
 	##		file that should be in the directory:
 	dataset_path = (glob.glob( data_path + country + "/" + dataset_folder + "/" + "*.img" ) + glob.glob( data_path + country + "/" + dataset_folder + "/" + "*.tif" ))
 	if dataset_path:
@@ -903,7 +1102,7 @@ if ("Elevation" in dataset_folders):
 		arcpy.env.snapRaster = ""
 
 
-		##	Now that we can clip without any automatic reprojection occurring, we 
+		##	Now that we can clip without any automatic reprojection occurring, we
 		##		clip using our census buffer as our boundary extent:
 		arcpy.Clip_management(in_path,"#",mosaic_path,buffer_path,"#","NONE")
 		print("	FINISHED: Mosaic...")
@@ -923,6 +1122,7 @@ if ("Elevation" in dataset_folders):
 		##	NOTE: See above about the Con() statement and its removal...
 		#outCon = Con(Raster(out_path), Raster(out_path), 0, "VALUE <> 0")
 		#outCon.save(out_path)
+		#outCon = None
 		print("	FINISHED: Projection...")
 
 
@@ -933,18 +1133,19 @@ if ("Elevation" in dataset_folders):
 		out_path = tmp_path + "/" + output_name
 
 		outRas.save(out_path)
+		outRas = None
 		print("	FINISHED: Slope...")
 
 
 
 if ("Temp" in dataset_folders):
 	dataset_folders.remove("Temp")
-	
+
 	##	Reproject and clip our WorldClim temperature data to match our landcover:
 	dataset_folder = "Temp"
 	print("PROCESSING:  " + dataset_folder)
 
-	#	Instead of hardcoding it above we'll look for a custom TIF or IMG 
+	#	Instead of hardcoding it above we'll look for a custom TIF or IMG
 	#		file that should be in the directory:
 	dataset_path = (glob.glob( data_path + country + "/" + dataset_folder + "/" + "*.img" ) + glob.glob( data_path + country + "/" + dataset_folder + "/" + "*.tif" ))
 	if dataset_path:
@@ -980,7 +1181,7 @@ if ("Temp" in dataset_folders):
 		arcpy.env.snapRaster = ""
 
 
-		##	Now that we can clip without any automatic reprojection occurring, we 
+		##	Now that we can clip without any automatic reprojection occurring, we
 		##		clip using our census buffer as our boundary extent:
 		mosaic_name = "mosaic.tif"
 		mosaic_path = tmp_path + "/" + mosaic_name
@@ -1005,17 +1206,18 @@ if ("Temp" in dataset_folders):
 		##		to crash immediately upon running.
 		#outCon = Con(Raster(out_path), Raster(out_path), 0, "VALUE <> 0")
 		#outCon.save(out_path)
+		#outCon = None
 
 
 
 if ("Precip" in dataset_folders):
 	dataset_folders.remove("Precip")
-	
+
 	##	Reproject and clip our WorldClim precipitation data to match our landcover:
 	dataset_folder = "Precip"
 	print("PROCESSING:  " + dataset_folder)
 
-	#	Instead of hardcoding it above we'll look for a custom TIF or IMG 
+	#	Instead of hardcoding it above we'll look for a custom TIF or IMG
 	#		file that should be in the directory:
 	dataset_path = (glob.glob( data_path + country + "/" + dataset_folder + "/" + "*.img" ) + glob.glob( data_path + country + "/" + dataset_folder + "/" + "*.tif" ))
 	if dataset_path:
@@ -1051,7 +1253,7 @@ if ("Precip" in dataset_folders):
 		arcpy.env.snapRaster = ""
 
 
-		##	Now that we can clip without any automatic reprojection occurring, we 
+		##	Now that we can clip without any automatic reprojection occurring, we
 		##		clip using our census buffer as our boundary extent:
 		mosaic_name = "mosaic.tif"
 		mosaic_path = tmp_path + "/" + mosaic_name
@@ -1076,6 +1278,7 @@ if ("Precip" in dataset_folders):
 		##		to crash immediately upon running.
 		#outCon = Con(Raster(out_path), Raster(out_path), 0, "VALUE <> 0")
 		#outCon.save(out_path)
+		#outCon = None
 
 
 ##	END: Data pre-processing for default datasets
@@ -1091,7 +1294,7 @@ if ("Precip" in dataset_folders):
 ##		data type:
 
 for dataset_folder in dataset_folders:
-	
+
 	##	Check to see if this is a folder to skip:
 	if not dataset_folder.startswith("!"):
 
@@ -1099,7 +1302,7 @@ for dataset_folder in dataset_folders:
 
 		print("PROCESSING:  " + dataset_folder + " Non-Default Data")
 
-		
+
 		##	Determine the type of data present (raster or shapefile):
 
 
@@ -1113,14 +1316,14 @@ for dataset_folder in dataset_folders:
 		else:
 			dataset_path = (glob.glob( data_path + country + "/" + dataset_folder + "/" + "*.img" ) + glob.glob( data_path + country + "/" + dataset_folder + "/" + "*.tif" ))
 			dataset_type = "raster"
-		
+
 			if dataset_path:
 				dataset_orig_name = os.path.basename( dataset_path[0] )
 
 			else:
 				print("ERROR:  No data file (*.img, *.tif, or *.shp) found in " + dataset_folder + "!")
 				exit()
-		
+
 
 		tmp_path = ensure_dir(data_path + country + "/" + dataset_folder)
 		in_path = tmp_path + "/" + dataset_orig_name
@@ -1132,16 +1335,20 @@ for dataset_folder in dataset_folders:
 			out_path = tmp_path + "/" + output_name
 
 			if not os.path.isfile(out_path) or not skip_existing:
+				##	See note above about clipping and process extent in ArcGIS 10.1:
+				tmp_extent = arcpy.env.extent
+				arcpy.env.extent = None
 				arcpy.Clip_analysis(in_path, buffer_path, out_path,"#")
+				arcpy.env.extent = tmp_extent
 
 			process_point_area(dataset_folder)
-		
+
 		else:
 			##	Process as a raster:
 
 			##	Determine whether the raster is binary or continuous:
 			unique_value_count_result = arcpy.GetRasterProperties_management(dataset_orig_name, "UNIQUEVALUECOUNT")
-			unique_value_count = unique_value_count_result.getOutput(0) 
+			unique_value_count = unique_value_count_result.getOutput(0)
 
 			if unique_value_count <= 3:
 				process_raster_binary(dataset_folder)
@@ -1157,15 +1364,15 @@ for dataset_folder in dataset_folders:
 #####
 ##	Preprocessing Notes for randomForest model:
 ##		1)	Land Cover and Other Areal Information (e.g. Protected Area)
-##			-	Broken down into proportion of each land cover class by square 
-##				kilometer using a moving window of 1000 m x 1000 m for each 100 m 
+##			-	Broken down into proportion of each land cover class by square
+##				kilometer using a moving window of 1000 m x 1000 m for each 100 m
 ##				pixel
 ##			-	Typical data:
-##					-	Land cover class: 
+##					-	Land cover class:
 ##						11 	= Cultivated Terrestrial Areas and Managed Lands
-##						40  = Natural and Semi-natural Terrestrial Vegetation – Woody / Trees
-##						130 = Natural and Seminatural Terrestrial Vegetation – Shrubs
-##						140 = Natural and Seminatural Terrestrial Vegetation – Herbaceous
+##						40  = Natural and Semi-natural Terrestrial Vegetation ? Woody / Trees
+##						130 = Natural and Seminatural Terrestrial Vegetation ? Shrubs
+##						140 = Natural and Seminatural Terrestrial Vegetation ? Herbaceous
 ##						150 = Natural and Semi-natural Terrestrial Vegetation
 ##						160 = Natural and Seminatural Aquatic Vegetation
 ##						190 = Urban area
@@ -1177,19 +1384,21 @@ for dataset_folder in dataset_folders:
 ##						BLT = Combined 190 and 240 built areas
 ##					-	Protected Area
 ##						-	Default: World Database on Protected Areas, UN
+##					-	Urban Extents
+##						-	Default: Classified from MODIS-derived data (Schneider, et al., UN)
 ##					-	Waterbodies
-##						-	Default: vmaplv0/sasaus:hydro/inwatera 
+##						-	Default: vmaplv0/sasaus:hydro/inwatera
 ##					-	Populated Areas, Merged (points are buffered by 100 m)
 ##						-	Default:
 ##								vmaplv0/sasaus:pop/builtupp (buffered to 100 m)
 ##								vmaplv0/sasaus:pop/builtupa
 ##								vmaplv0/sasaus:pop/mispopp (buffered to 100 m)
 ##								(vmaplv0/sasaus:pop/mispopa) [REMOVED]
-##									Because	it's not present in the South	America and 
+##									Because	it's not present in the South	America and
 ##										Africa dataset
 ##						-	But may include OSM, health care centers, and any variety
 ##							of ancillary data collected for each country...
-##			-	These pixels are averaged per census block for parameterizing 
+##			-	These pixels are averaged per census block for parameterizing
 ##				the random forest model
 ##
 ##		2)	Distance-to Land Cover Class, Area Polygon, or Other Feature
@@ -1198,9 +1407,9 @@ for dataset_folder in dataset_folders:
 ##			-	Typical data:
 ##				-	Land cover classes:
 ##						11 	= Cultivated Terrestrial Areas and Managed Lands
-##						40  = Natural and Semi-natural Terrestrial Vegetation – Woody / Trees
-##						130 = Natural and Seminatural Terrestrial Vegetation – Shrubs
-##						140 = Natural and Seminatural Terrestrial Vegetation – Herbaceous
+##						40  = Natural and Semi-natural Terrestrial Vegetation ? Woody / Trees
+##						130 = Natural and Seminatural Terrestrial Vegetation ? Shrubs
+##						140 = Natural and Seminatural Terrestrial Vegetation ? Herbaceous
 ##						150 = Natural and Semi-natural Terrestrial Vegetation
 ##						160 = Natural and Seminatural Aquatic Vegetation
 ##						190 = Urban area
@@ -1217,6 +1426,7 @@ for dataset_folder in dataset_folders:
 ##				-	Waterbodies (see above)
 ##				-	Populated Areas, Merged (see above)
 ##				-	Protected Areas (see above)
+##				-	Urban Extent Areas (see above)
 ##
 ##		3)	Mean value per administrative unit:
 ##			- Typical data:

@@ -11,15 +11,25 @@
 ##		so the paths may be incorrect if specified incorrectly inside that
 ##		file!
 
-##	Configure the country abbreviation and name:
-country <- "NGA"
 
-##	This should be set to the folder *containing* the "RF" folder structure:
-root_path <- "D:/Documents/Graduate School/Research/Population/Data/"
-project_path <- paste(root_path, "RF/data/", country, "/", sep="")
+##	Parse main configuration file, which will set the country and root_path
+##		variables:
+source("01.0 - Configuration.py.r")
+
 
 ##	Load the metadata from the file created in the country's /data folder:
+project_path <- paste(root_path, "/data/", country, "/", sep="")
 source(paste(project_path, "Metadata.r", sep=""))
+
+
+##	NOTE:  In the most recent version of MODIS you no longer will need
+##		a .MODIS_Opts.R file in your documents folder.  We set this on the 
+##		fly and non-persistently, and these directories will be created if
+##		they don't already exist, however, make sure that the containing
+##		folder, by default C:/tmp/, does already exist as this can cause 
+##		problems because directory creation is non-recursive:
+modis_archive_path <- "C:/tmp/MODIS_ARC/"
+modis_out_path <- "C:/tmp/MODIS_ARC/PROCESSED/"
 
 
 ##	It's good practice to check the folders in your country's data folder
@@ -40,9 +50,9 @@ names(metadata)[order(names(metadata))]
 ##		included in the configuration options here as a reminder to 
 ##		double check their presence in both the country's data folder *and* an
 ##		entry in the Metadata.r file.  As of now, there must be a shapefile, 
-##		named anything you like in the Census folder, with ADMINID and ADMINPOP
-##		fields, and	an *.img or *.tif file in the Landcover that has at least 
-##		a subset of the land covers as coded in our paper:
+##		named anything you like in the Census folder, with ADMINID, ADMINPOP,
+##		and YEARPOP	fields, and	an *.img or *.tif file in the Landcover folder
+##		that has at least a subset of the land covers as coded in our paper:
 required_datasets <- c("Census", "Landcover")
 
 ##	Specify the datasets with default data (specialized treatment using
@@ -55,7 +65,7 @@ required_datasets <- c("Census", "Landcover")
 ##		But you may exclude default processing altogether by removing the name
 ##		from this list *or* by removing the name from the Metadata.r file in 
 ##		the country's /data folder:
-default_datasets <- c("NPP", "Lights", "Roads", "Rivers", "Waterbodies", "Populated", "Protected", "Elevation", "Temp", "Precip" )
+default_datasets <- c("NPP", "Lights", "Roads", "Rivers", "Waterbodies", "Populated", "Protected", "Urban", "Elevation", "Temp", "Precip" )
 
 
 ##	END:	Load configuration options
@@ -104,7 +114,7 @@ require(rgdal)
 
 
 ##	Check to make sure we have all dependencies:
-MODIS:::checkDeps()
+#MODIS:::checkDeps()
 
 ##	> setRepositories()
 ##	--- Please select repositories for use in this session ---
@@ -132,15 +142,13 @@ MODIS:::checkDeps()
 
 ##	Last, double check that our tool chain is set up correctly for the MODIS
 ##		Reprojection Toolkit and the GDAL version:
-MODIS:::checkTools("GDAL")
+#MODIS:::checkTools("GDAL")
 #MODIS:::checkTools("MRT")
 
+dir.create(modis_archive_path, showWarnings=FALSE)
+dir.create(modis_out_path, showWarnings=FALSE)
 
-##	MODIS local archive output location, as specified in your .MODIS_Opts.R 
-##		file using the outDirPath configuration line.  This file should
-##		be located in your documents folder in Windows, e.g.:
-##			C:\Users\Forrest\Documents\.MODIS_Opts.R file:
-modis_out <- paste(options()$MODIS_outDirPath, "/", country, sep="")
+MODISoptions(localArcPath = modis_archive_path, outDirPath = modis_out_path, systemwide=FALSE, save=FALSE)
 
 
 ##	END: Package loading and fixed parameter configuration
@@ -180,10 +188,6 @@ for (dataset in metadata) {
 	##	Perform a variety of checks of the metadata and data before continuing:
 
 
-	##	Remove the dataset folder from the list of folders in our directory:
-	dataset_folders <- dataset_folders[dataset$dataset_folder != dataset_folders]
-
-
 	##	Default variable name, folder location and dataset name for the 
 	##		datasets:
 	var_name <- substr( tolower(dataset$dataset_folder), 1, 3)
@@ -199,6 +203,15 @@ for (dataset in metadata) {
 	} else {
 		var_names <- append(var_names, var_name)
 	}
+
+
+	##	Check to make sure that the dataset class is specified correctly.  The
+	##		only available, processed datasets are either "polygon", "point", 
+	##		"linear", or "raster" and must be specified as such:
+	if (!(dataset$dataset_class %in% c("polygon", "point", "linear", "raster"))) {
+		stop(paste("ERROR:  It appears as though the dataset class specified for the ", dataset$dataset_folder, " data is incorrect.  You set it to: '", dataset$dataset_class, "'.  It must be specified correctly as one of 'polygon' or 'point' or 'raster' and must match the appropriate data type of the data file!  Please update the Metadata.r file appropriately and re-run this script before proceeding!", sep=""))
+	}
+
 
 	##	As we iterate through our metadata datasets, check to make sure
 	##		the folder exists and if it is not part of the default data
@@ -230,8 +243,14 @@ for (dataset in metadata) {
 	##		above.  Just because it exists in a non-default dataset does not
 	##		mean it is recorded and specified correctly.  This is important 
 	##		because we want the metadata reports to be accurate:
+	##	NOTE: We make an exception for NPP because the default NPP dataset
+	##		title doesn't match the data file name created from the data download
+	##		processing output from below.  This is only a problem if this script
+	##		is re-run after the NPP download and processing takes place.  Which
+	##		shouldn't happen but is an edge-case that happens occasionally and
+	##		will cause problems.
 	if (!is.na(dataset_name)) {
-		if (dataset_name != dataset$dataset_name) {
+		if (dataset_name != dataset$dataset_name & dataset$dataset_folder != "NPP") {
 			stop(paste("ERROR:  The ", dataset$dataset_name, " specified for the \"", dataset$dataset_folder, "\" does not match the file found in the folder on the drive:  ", dataset_name, ".  Please double check that the Metadata.r file has been updated correctly to match the data processing you really want in order to ensure that the metadata reports are correct.", sep=""))
 		}
 	}
@@ -298,6 +317,10 @@ for (dataset in metadata) {
 )
 		covariates[[var_name]][["path"]] <- paste(dataset_derived_path, covariates[[var_name]]$dataset_name, sep="")
 	}
+
+	##	Remove the dataset folder from the list of folders in our directory:
+	dataset_folders <- dataset_folders[dataset$dataset_folder != dataset_folders]
+
 }
 
 
@@ -328,9 +351,15 @@ if (length(dataset_folders) > 0) {
 ##	BEGIN:	Download and process MODIS products:
 
 
-##	If NPP is specified in the metadata as a dataset to include download
-##		and process it to create our output:
-if (("NPP" %in% names(metadata)) & ("NPP" %in% default_datasets)) {
+##	If NPP is specified in the metadata as a dataset and the file does not
+##		already exist then we need download	and process it to create our 
+##		output:
+dataset_base_path <- paste(project_path, "NPP", "/", sep="")
+dataset_derived_path <- paste(dataset_base_path, "Derived/", sep="")
+dataset_name <- tolower("NPP")
+dataset_name = list.files(dataset_base_path, "tif$|img$")[1]
+
+if (("NPP" %in% names(metadata)) & ("NPP" %in% default_datasets) & (is.na(dataset_name))) {
 
 	##	Load data associated with the extent of our current country:
 
@@ -363,7 +392,7 @@ if (("NPP" %in% names(metadata)) & ("NPP" %in% default_datasets)) {
 
 	##	NOTE: runGdal() requires that we have FWTools or some other software
 	##		with a working, binary implementation of GDAL that R can find:
-	runGdal(job=country, product="MOD17A3", begin="2010-01-01", end="2011-01-01", extent=extent(census), SDSstring=out_SDSstring, outProj="+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0", pixelSize=0.0008333, resamplingType="NN")
+	MODIS::runGdal(job=country, product="MOD17A3", begin="2010-01-01", end="2011-01-01", extent=extent(census), SDSstring=out_SDSstring, outProj="+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0", pixelSize=0.0008333, resamplingType="NN")
 
 	##	NOTE: There's a bug in the runGdal() function that tries move a file
 	##		after it is complete, which throws a "Warning message:" like the 
@@ -375,10 +404,14 @@ if (("NPP" %in% names(metadata)) & ("NPP" %in% default_datasets)) {
 
 
 	##	Since we had to send output to a temporary directory you can now move the contents of the temporary output folder into the /data folder for the country in question.
-	dataset_name <- list.files(modis_out, "tif$|img$", full.names=FALSE)
-	file.copy(from = paste(modis_out, dataset_name, sep="/"), to = paste(project_path, "NPP/", dataset_name, sep=""), overwrite=TRUE)
+	dataset_name <- list.files(paste(modis_out_path, country, sep=""), "tif$|img$", full.names=FALSE)
+	file.copy(from = paste(modis_out_path, country, dataset_name, sep="/"), to = paste(project_path, "NPP/", dataset_name, sep=""), overwrite=TRUE)
 
 }
+
+
+##	Return our working directory to the source folder:
+setwd(paste(root_path, "src", sep=""))
 
 
 ##	END:	Download and process MODIS products:
