@@ -32,7 +32,7 @@ source(paste(project_path, "Metadata.r", sep=""))
 ##	NOTE:	This script assumes that you have prepared output at a coarse
 ##		level with which to compare to census data in a country as specified
 ##		here.
-country_comp <- "THA_005"
+country_comp <- "RWA"
 
 ##	END:	Validation configuration options
 #####
@@ -76,7 +76,7 @@ python_path <- Sys.getenv("ARCPY")
 ##		code listed without a level of aggregation):
 
 ##	This should be set to the folder *containing* the "RF" folder structure:
-project_path_comp <- paste(root_path, "data/", country_comp, "/", sep="")
+project_path_comp <- paste(root_path, "/data/", country_comp, "/", sep="")
 
 
 dataset_name <- list.files(paste(project_path_comp, "Census/", sep=""),  "shp$")
@@ -178,6 +178,14 @@ if (file.exists(paste(workspace_dir, "/rpygeo.msg", sep=""))) {
 
 #####
 ##	BEGIN:	Validation of data and output:
+
+##	There exists the possibility with extremely fine census data that we
+##		have census units that appear over areas that are classified as water
+##		or otherwise missing data that precludes us generating a prediction
+##		in the prediction density layer.  This will result in a value of -9999
+##		(missing) in the zonal output.  We'll exclude these:
+output_dbf <- output_dbf[output_dbf$RASTERVALU >= 0,]
+
 observed <- output_dbf$ADMINPOP
 predicted <- output_dbf$RASTERVALU
 
@@ -216,7 +224,7 @@ text(y=max(c(observed, predicted))/10*2, x=max(c(observed, predicted))/10*5.5, p
 
 
 ##	Return our working directory to the source folder:
-setwd(paste(root_path, "src", sep=""))
+setwd(paste(root_path, "/src", sep=""))
 
 
 ##	END:	Validation of data and output:

@@ -9,7 +9,7 @@
 
 
 ##	Configure the country abbreviation and name:
-country = "IDN"
+country = "NIC"
 
 ##	The version of the scripts used to produce the mapping products, and
 ##		which will match the "_v" portion of the filename outputs:

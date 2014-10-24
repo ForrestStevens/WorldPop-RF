@@ -389,6 +389,9 @@ x_data <- x_data[,!grepl("240", names(x_data))]
 ###  Remove elevation:
 #x_data <- x_data[,!(names(x_data) == "ele")]
 
+###  Remove NPP:
+#x_data <- x_data[,!(names(x_data) == "npp")]
+
 
 ###	Remove all populated place data:
 #x_data <- x_data[,!grepl("pop", names(x_data))]
@@ -716,13 +719,13 @@ if (!is.null(fixed_set)) {
 		popfit_final <- popfit_final_combined
 		popfit_quant <- popfit_quant_combined
 		
+		output_path_tmp <- paste(root_path, "/output/", country, "/tmp/", sep="")
+		
 		##  Save off our popfit object for this set of data:
 		save(popfit_final, file=paste(output_path_tmp, "popfit_final_combined.RData", sep=""))
 		#load(file=paste(output_path_tmp, "popfit_final_combined.RData", sep=""))
 		save(popfit_quant, file=paste(output_path_tmp, "popfit_quant_combined.RData", sep=""))
 		#load(file=paste(output_path_tmp, "popfit_quant_combined.RData", sep=""))
-		
-		output_path_tmp <- paste(root_path, "/output/", country, "/tmp/", sep="")
 	}
 }
 
@@ -855,22 +858,22 @@ cluster_predict <- function(prediction_raster, quant_output=FALSE, ...) {
 	##		come back from our cluster:
 	setwd(output_path)
 	
-	prediction_raster <- writeStart(prediction_raster, filename="predict_density.img", format="HFA", datatype="FLT4S", overwrite=TRUE)
+	prediction_raster <- writeStart(prediction_raster, filename="predict_density.tif", format="GTiff", datatype="FLT4S", overwrite=TRUE, options=c("COMPRESS=LZW"))
 	
 	#prediction_raster_alt <- prediction_raster
-	#prediction_raster_alt <- writeStart(prediction_raster_alt, filename="predict_density_alt.img", format="HFA", datatype="FLT4S", overwrite=TRUE)
+	#prediction_raster_alt <- writeStart(prediction_raster_alt, filename="predict_density_alt.tif", format="GTiff", datatype="FLT4S", overwrite=TRUE, options=c("COMPRESS=LZW"))
 	sd_raster <- prediction_raster
-	sd_raster <- writeStart(sd_raster, filename="predict_density_sd.img", format="HFA", datatype="FLT4S", overwrite=TRUE)
+	sd_raster <- writeStart(sd_raster, filename="predict_density_sd.tif", format="GTiff", datatype="FLT4S", overwrite=TRUE, options=c("COMPRESS=LZW"))
 	#cv_raster <- prediction_raster
-	#cv_raster <- writeStart(cv_raster, filename="predict_density_cv.img", format="HFA", datatype="FLT4S", overwrite=TRUE)
+	#cv_raster <- writeStart(cv_raster, filename="predict_density_cv.tif", format="GTiff", datatype="FLT4S", overwrite=TRUE, options=c("COMPRESS=LZW"))
 
   if (quant_output) {
   	prediction_raster_05 <- prediction_raster
-  	prediction_raster_05 <- writeStart(prediction_raster_05, filename="predict_density_05.img", format="HFA", datatype="FLT4S", overwrite=TRUE)
+  	prediction_raster_05 <- writeStart(prediction_raster_05, filename="predict_density_05.tif", format="GTiff", datatype="FLT4S", overwrite=TRUE, options=c("COMPRESS=LZW"))
   	prediction_raster_50 <- prediction_raster
-  	prediction_raster_50 <- writeStart(prediction_raster_50, filename="predict_density_50.img", format="HFA", datatype="FLT4S", overwrite=TRUE)
+  	prediction_raster_50 <- writeStart(prediction_raster_50, filename="predict_density_50.tif", format="GTiff", datatype="FLT4S", overwrite=TRUE, options=c("COMPRESS=LZW"))
   	prediction_raster_95 <- prediction_raster
-  	prediction_raster_95 <- writeStart(prediction_raster_95, filename="predict_density_95.img", format="HFA", datatype="FLT4S", overwrite=TRUE)
+  	prediction_raster_95 <- writeStart(prediction_raster_95, filename="predict_density_95.tif", format="GTiff", datatype="FLT4S", overwrite=TRUE, options=c("COMPRESS=LZW"))
   }
 
 	##	Create our primary cluster processing loop, recalling that we already
@@ -963,6 +966,22 @@ census_mask <- crop( census_mask, my_extent )
 my_extent <- extent(census_mask)
 
 
+##	Confirm that our extent matches the minimum extent for all covariates.
+##		Small inconsistencies can arrive as a product of the ArcGIS 
+##		processing so this is a necessary step otherwise the stacking process
+##		will fail in some cases:
+for (var_name in names(popfit$forest$xlevels)) {
+	assign("tmp_raster", raster( covariates[[var_name]]$path ))
+	if (xmin(tmp_raster) > xmin(my_extent)) { my_extent@xmin <- xmin(tmp_raster) }
+	if (xmax(tmp_raster) < xmax(my_extent)) { my_extent@xmax <- xmax(tmp_raster) }
+	if (ymin(tmp_raster) > ymin(my_extent)) { my_extent@ymin <- ymin(tmp_raster) }
+	if (ymax(tmp_raster) < ymax(my_extent)) { my_extent@ymax <- ymax(tmp_raster) }
+}
+
+##	Re-crop census_mask:
+census_mask <- crop(census_mask, my_extent)
+
+
 ##	Create raster objects from each covariate raster:
 ##	NOTE: We are cropping each layer here because as I've discovered
 ##		with very large rasters if you try to crop the resulting covariate
@@ -986,6 +1005,7 @@ for (var_name in names(popfit$forest$xlevels)) {
 	print(paste("Stacking: ", var_name, sep=""))
 	flush.console()
 	assign(var_name, crop(raster( covariates[[var_name]]$path ), my_extent))
+	print(paste("ncell:", eval(parse(text=paste("ncell(", var_name, ")", sep="")))))
 }
 
 ##	We need to ensure the water mask is included in covariate stack:
@@ -1064,7 +1084,7 @@ endCluster()
 
 
 ##	Return our working directory to the source folder:
-setwd(paste(root_path, "src", sep=""))
+setwd(paste(root_path, "/src", sep=""))
 
 
 ##	END:	Predict for gridded covariates

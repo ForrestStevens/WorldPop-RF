@@ -1,0 +1,19 @@
+1.	If you are using the packaged RF code with binaries and you are using the installation of R and RStudio included then you first need to make sure that the batch file "Start RStudio for RF..." ... correct paths for both RFHOME and ARCPY...
+
+2.	Edit PyScripter batch file... if you have more than one version of Python and only one of them is installed with ArcGIS, then make sure that you specify a command line switch... e.g.  
+	SET PYTHONHOME=E:\PortablePython 
+	PyScripter --PYTHON25 --PYTHONDLLPATH "E:\PortablePython" %1 %2 %3 %4 %5
+
+3.	When running the RStudio batch file for the first time, if you have another version of R or RStudio already installed on your machine then hold down Control (Ctrl) and choose the R version packaged with the RF /bin folder.
+
+4.	When setting up the scripts to run, the only script in the /src folder t should require editing is the "01.0 - Configuration.py.r" file (unless specific, code-level changes are required).  You must set the country to the name used for the folder to hold both /data and /output and the root_path= variable needs to be set to the folder location that contains the RF package folders (e.g. /data, /output, /src, /etc, etc.).
+
+5.	In the "\etc\To be imported based on ArcGIS version" folder you'll find two regsitry files, one configured for ArcGIS 10.0 and Python 2.6 and one configured for ArcGIS 10.1 and Python 2.7.  Double click the appropriate one for your version of ArcGIS and Python and import the changes to the registry.  This is necessary to get the RPyGeo package to work correctly.
+
+--- NOTE ---
+
+The above should only need to be done when configuring the RF system to run on a new machine.  The following need to be done for each country you run:
+
+------------
+
+6.	Then, within the /data/country/ folder you must create a Metadata.r file that specifically sets up and deals with the data sources used, beyond the default datasets contained in the /data/! Defaults/ folder.  There is a model Metadata.r file in that folder to use as a template.

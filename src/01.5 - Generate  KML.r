@@ -18,7 +18,7 @@ source("01.0 - Configuration.py.r")
 
 
 ##	Load the metadata from the file created in the country's /data folder:
-project_path <- paste(root_path, "data/", country, "/", sep="")
+project_path <- paste(root_path, "/data/", country, "/", sep="")
 source(paste(project_path, "Metadata.r", sep=""))
 
 ##	END:	Load configuration options
@@ -200,9 +200,10 @@ frs_plotKML <- function (obj, ...) {
 		if (all(sapply(obj, class) == "RasterLayer")) {
 			plot_legend = TRUE
 			for (i in 1:length(obj)) {
-				if (cellStats(obj[[i]], stat="max") > 0) {
+				##	Suppressing any warnings from data with all NAs:
+				if (suppressWarnings(cellStats(obj[[i]], stat="max")) > 0) {
 					##	Substitute any zeroes with NA:
-					obj[[i]] <- subs(obj[[i]], data.frame("from"=0, "to"=NA), subsWithNA=FALSE)
+					#obj[[i]] <- subs(obj[[i]], data.frame("from"=0, "to"=NA), subsWithNA=FALSE)
 					##	Convert current RasterLayer object:
 					raster_name_i <- paste(names(obj[[i]]), "_", i, ".png", sep = "")
 					kml_layer.Raster(obj[[i]], raster_name = raster_name_i, metadata = metadata, plot.legend = plot_legend, ...)
@@ -230,6 +231,82 @@ frs_plotKML <- function (obj, ...) {
 ##		reassignInPackage() function from the R.utils package:
 frs_FWTools.path <- function(...) { return(paste(root_path, "/bin/FWTools2.4.7/", sep="")) }
 reassignInPackage(".FWTools.path", pkgName="GSIF", frs_FWTools.path)
+
+
+##	Last, we are going to actually define our own tile function instead of
+##		using the one that exists in the GSIF package, because we want to 
+##		control the way that the tile image is saved (the GSIF version uses
+##		gdalwarp and loses the NA values, converting them to zeroes:
+#frs_tile <- function (x, y, block.x, tmp.file = FALSE, program, show.output.on.console = FALSE, ...) {
+#	if (filename(x) == "") {
+#		stop("Function applicable only to 'RasterLayer' objects linking to external raster files")
+#	}
+#
+#	if (missing(program)) {
+#		if (.Platform$OS.type == "windows") {
+#			fw.dir = .FWTools.path()
+#			program = shQuote(shortPathName(normalizePath(file.path(fw.dir, "bin/gdalwarp.exe"))))
+#		} else {
+#			program = "gdalwarp"
+#		}
+#	}
+#
+#	if (missing(y)) {
+#		b <- bbox(x)
+#		pol <- SpatialPolygons(list(Polygons(list(Polygon(matrix(c(b[1, 1], b[1, 1], b[1, 2], b[1, 2], b[1, 1], b[2, 1], b[2, 2], b[2, 2], b[2, 1], b[2, 1]), ncol = 2))), ID = "1")), proj4string = CRS(proj4string(x)))
+#		y <- getSpatialTiles(pol, block.x = block.x, return.SpatialPolygons = FALSE, ...)
+#	}
+#
+#	x.lst <- list()
+#	message("Clipping raster object using 'gdalwarp'...")
+#
+#	for (j in 1:nrow(y)) {
+#		if (tmp.file == TRUE) {
+#			outname <- tempfile()
+#		} else {
+#			outname <- paste(normalizeFilename(deparse(substitute(x, env = parent.frame()))), j, sep = "_")
+#		}
+#
+#		##	TODO: We need to set the -srcnodata and -dstnodata flags to use the
+#		##		-Inf (-2E38) value for the Raster object being fed into it.  This 
+#		##		tile function is not any different than the standard GSIF function
+#		##		for	Raster data at the moment:
+#		try(system(paste(program, shortPathName(normalizePath(filename(x))), set.file.extension(outname, ".tif"), "-te", y[j, 1], y[j, 2], y[j, 3], y[j, 4]), show.output.on.console = show.output.on.console))
+#		try(x.lst[[j]] <- raster(set.file.extension(outname, ".tif")))
+#	}
+#
+#	return(x.lst)
+#}
+
+##	NOTE: Instead of using the above tile function, modified from the GSIF
+##		package, I'm going to use the below function instead.  This function
+##		relies on the Raster package crop() function, and keeps cropped 
+##		raster objects in memory rather than writing them out to disk.  This 
+##		has the advantage of being faster and not triggering the problem of
+##		NODATA values being written out to the output by gdalwarp as zeroes
+##		by default.  If we run into a country where this in-memory processing
+##		is too problematic, then we can modify the TODO section above to use
+##		gdalwarp, but enforce proper handling of NODATA values:
+frs_raster_tile <- function (x, y, block.x, tmp.file = FALSE, program, show.output.on.console = FALSE, ...) {
+	if (filename(x) == "") {
+		stop("Function applicable only to 'RasterLayer' objects linking to external raster files")
+	}
+
+	if (missing(y)) {
+		b <- bbox(x)
+		pol <- SpatialPolygons(list(Polygons(list(Polygon(matrix(c(b[1, 1], b[1, 1], b[1, 2], b[1, 2], b[1, 1], b[2, 1], b[2, 2], b[2, 2], b[2, 1], b[2, 1]), ncol = 2))), ID = "1")), proj4string = CRS(proj4string(x)))
+		y <- getSpatialTiles(pol, block.x = block.x, return.SpatialPolygons = FALSE, ...)
+	}
+
+	x.lst <- list()
+	message("Clipping raster object using raster...")
+
+	for (j in 1:nrow(y)) {
+		x.lst[[j]] <- crop(x, extent(y[j,1],y[j,3],y[j,2],y[j,4]))
+	}
+
+	return(x.lst)
+}
 
 
 ##	END:	Internal function declaration
@@ -312,7 +389,8 @@ z.lim = c(0,35)
 ##		that the block.x parameter is in the units of the projection, in our
 ##		case degrees:
 setwd(kml_output_path)
-raster_data_list <- tile(raster_data, block.x=500 * 0.0008333)
+#raster_data_list <- tile(raster_data, block.x=500 * 0.0008333)
+raster_data_list <- frs_raster_tile(raster_data, block.x=500 * 0.0008333)
 
 
 #showMethods("plotKML")
@@ -332,8 +410,8 @@ frs_plotKML(raster_data_list, file.name=paste(country, "_ppp_v", rf_version, "_"
 ##		due to transparency issues (4-bit and 2-bit PNG with transparent 
 ##		colors don't work in Google Earth).  To do this we use a system
 ##		call to ImageMagick's mogrify command:
-shell(paste('"', root_path, 'bin\\ImageMagick-6.7.4-Q16\\mogrify.exe" -format png -depth 8 -type TruecolorMatte -define png:color-type=6 *.png', sep=""), intern=TRUE)
-shell(paste('"', root_path, "bin\\7-Zip\\7z.exe\" -Tzip a ..\\..\\", country, "_ppp_v", rf_version, "_", census_year, ".kmz *.*", sep=""), intern=TRUE)
+shell(paste('"', root_path, '\\bin\\ImageMagick-6.7.4-Q16\\mogrify.exe" -format png -depth 8 -type TruecolorMatte -define png:color-type=6 *.png', sep=""), intern=TRUE)
+shell(paste('"', root_path, "\\bin\\7-Zip\\7z.exe\" -Tzip a ..\\..\\", country, "_ppp_v", rf_version, "_", census_year, ".kmz *.*", sep=""), intern=TRUE)
 
 
 
@@ -346,7 +424,7 @@ shell(paste('"', root_path, "bin\\7-Zip\\7z.exe\" -Tzip a ..\\..\\", country, "_
 
 
 ##	Return our working directory to the source folder:
-setwd(paste(root_path, "src", sep=""))
+setwd(paste(root_path, "/src", sep=""))
 
 
 ##	END:	Plot an figure for KML conversion

@@ -34,6 +34,10 @@
 ##		variables:
 execfile("01.0 - Configuration.py.r")
 
+
+##	Round to whole population counts?
+round_counts = False
+
 ##	END:	Set per-country configuration options
 #####
 
@@ -84,6 +88,9 @@ from arcpy.sa import *
 
 ##	Configure arcpy:
 
+# Set the compression environment to LZ77:
+arcpy.env.compression = "LZ77"
+
 ##	Should we overwrite any already existing derived data:
 overwrite = True
 arcpy.env.overwriteOutput = overwrite
@@ -131,10 +138,16 @@ else:
 
 
 ##	Datasets:
-##	Estimated population density from randomForest to be used as density
-##		weightings (gridx) from the old model:
-popdensity_weighting = output_path + "predict_density.img"
 
+##	Estimated population density from randomForest to be used as density
+##		weightings (gridx) from the old model, a file that should be in the
+##		directory (we changed formats between version numbers so check for both:
+dataset_path = glob.glob( output_path + "predict_density.*" )
+if dataset_path:
+	popdensity_weighting = dataset_path[0]
+else:
+	print("ERROR:  No \"predict_density\" TIF or IMG found in the output folder!  You first need to run the 1.3 R script!")
+	exit()
 
 ##	Population data
 if census_folder != "":
@@ -213,13 +226,19 @@ row = rows.next()
 census_year = row.YEARPOP
 
 
-gridp = arcpy.FeatureToRaster_conversion('admin_Union', 'POP', 'gridp.img', '0.0008333')
+gridp = arcpy.FeatureToRaster_conversion('admin_Union', 'POP', 'gridp.tif', '0.0008333')
 gridy = arcpy.sa.ZonalStatistics('admin_Union', 'ADMINID', popdensity_weighting_final, 'SUM', 'DATA')
 
 print("PPP: Calculating People Per Pixel " + str(census_year))
-popmap = gridp * Raster(popdensity_weighting_final) / gridy
+if (round_counts):
+	##	Int() just truncates to integer values (note any populationcounts >
+	##		greater than 2,147,483,647 (maximum size determined by 2^31-1)
+	##		will be set to NoData:
+	popmap = Int((gridp * Raster(popdensity_weighting_final) / gridy) + 0.5)
+else:
+	popmap = gridp * Raster(popdensity_weighting_final) / gridy
 
-##	NOTE: So there's a bug in the arcpy raster optimization that 
+##	NOTE: So there's a bug in the arcpy raster optimization that
 ##		often, even though you're specifying the .save() option will not
 ##		actually write it out to disk until it thinks that you're really
 ##		removing it from memory.  To force this to happen across versions

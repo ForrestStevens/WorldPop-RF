@@ -23,8 +23,13 @@ execfile("01.0 - Configuration.py.r")
 ##	For RWA, right on edge of 35S and 36S so modified to 35.5S with meridian 30.0:
 #intermediate_prj = "PROJCS['WGS_1984_UTM_Zone_35.5S',GEOGCS['GCS_WGS_1984',DATUM['D_WGS_1984',SPHEROID['WGS_1984',6378137.0,298.257223563]],PRIMEM['Greenwich',0.0],UNIT['Degree',0.0174532925199433]],PROJECTION['Transverse_Mercator'],PARAMETER['False_Easting',500000.0],PARAMETER['False_Northing',10000000.0],PARAMETER['Central_Meridian',30.0],PARAMETER['Scale_Factor',0.9996],PARAMETER['Latitude_Of_Origin',0.0],UNIT['Meter',1.0],AUTHORITY['EPSG',32735.5]]"
 ##	For IDN:
-intermediate_prj = 'PROJCS["Asia_Lambert_Conformal_Conic",GEOGCS["GCS_WGS_1984",DATUM["D_WGS_1984",SPHEROID["WGS_1984",6378137.0,298.257223563]],PRIMEM["Greenwich",0.0],UNIT["Degree",0.0174532925199433]],PROJECTION["Lambert_Conformal_Conic"],PARAMETER["False_Easting",0.0],PARAMETER["False_Northing",0.0],PARAMETER["Central_Meridian",105.0],PARAMETER["Standard_Parallel_1",30.0],PARAMETER["Standard_Parallel_2",62.0],PARAMETER["Latitude_Of_Origin",0.0],UNIT["Meter",1.0],AUTHORITY["ESRI",102012]]'
-
+#intermediate_prj = 'PROJCS["Asia_Lambert_Conformal_Conic",GEOGCS["GCS_WGS_1984",DATUM["D_WGS_1984",SPHEROID["WGS_1984",6378137.0,298.257223563]],PRIMEM["Greenwich",0.0],UNIT["Degree",0.0174532925199433]],PROJECTION["Lambert_Conformal_Conic"],PARAMETER["False_Easting",0.0],PARAMETER["False_Northing",0.0],PARAMETER["Central_Meridian",105.0],PARAMETER["Standard_Parallel_1",30.0],PARAMETER["Standard_Parallel_2",62.0],PARAMETER["Latitude_Of_Origin",0.0],UNIT["Meter",1.0],AUTHORITY["ESRI",102012]]'
+##	For PAN:
+#intermediate_prj = 'PROJCS["Panama-Colon 1911 / Panama Lambert",GEOGCS["GCS_WGS_1984",DATUM["D_WGS_1984",SPHEROID["WGS_1984",6378137.0,298.257223563]],PRIMEM["Greenwich",0.0],UNIT["Degree",0.0174532925199433]],PROJECTION["Lambert_Conformal_Conic"],PARAMETER["False_Easting",500000.0],PARAMETER["False_Northing",294865.303],PARAMETER["Central_Meridian",-80.0],PARAMETER["Standard_Parallel_1",8.25],PARAMETER["Standard_Parallel_2",8.25],PARAMETER["Scale_Factor",0.99989909],PARAMETER["Latitude_Of_Origin",8.25],UNIT["Meter",1.0]]'
+##	For CRI:
+#intermediate_prj = 'PROJCS["WGS_1984_UTM_Zone_16.5N",GEOGCS["GCS_WGS_1984",DATUM["D_WGS_1984",SPHEROID["WGS_1984",6378137.0,298.257223563]],PRIMEM["Greenwich",0.0],UNIT["Degree",0.0174532925199433]],PROJECTION["Transverse_Mercator"],PARAMETER["False_Easting",500000.0],PARAMETER["False_Northing",0.0],PARAMETER["Central_Meridian",-84.0],PARAMETER["Scale_Factor",0.9996],PARAMETER["Latitude_Of_Origin",0.0],UNIT["Meter",1.0],AUTHORITY["EPSG",32616]]'
+##	For NIC:
+intermediate_prj = 'PROJCS["WGS_1984_UTM_Zone_16.25N",GEOGCS["GCS_WGS_1984",DATUM["D_WGS_1984",SPHEROID["WGS_1984",6378137.0,298.257223563]],PRIMEM["Greenwich",0.0],UNIT["Degree",0.0174532925199433]],PROJECTION["Transverse_Mercator"],PARAMETER["False_Easting",500000.0],PARAMETER["False_Northing",0.0],PARAMETER["Central_Meridian",-85.0],PARAMETER["Scale_Factor",0.9996],PARAMETER["Latitude_Of_Origin",0.0],UNIT["Meter",1.0],AUTHORITY["EPSG",32616]]'
 
 ##	Alternative census folder:
 ##		This is a census folder other than the one used for the RF model
@@ -102,6 +107,9 @@ from arcpy.sa import *
 
 ##	Configure arcpy:
 
+# Set the compression environment to LZ77:
+arcpy.env.compression = "LZ77"
+
 ##	Should we overwrite any already existing derived data:
 overwrite = True
 arcpy.env.overwriteOutput = overwrite
@@ -157,8 +165,8 @@ def process_point_area(dataset_folder):
 
 	##	Use FID to create output raster from our features:
 	##	NOTE:  This is one more kludge-y workaround for ArcGIS and arcpy
-	##		bugginess.  For most cases except very large rasters like when 
-	##		dealing with China or Indonesia using one raster file for the 
+	##		bugginess.  For most cases except very large rasters like when
+	##		dealing with China or Indonesia using one raster file for the
 	##		post-feater-to-raster conversion seems to work.  But Python just
 	##		bails for some large raster-cases.  Therefore we have to use this
 	##		series of tmpRas objects in addition to the setting of things to
@@ -186,7 +194,11 @@ def process_point_area(dataset_folder):
 
 		##		we do this:
 		tmp_extent = arcpy.env.extent
+
+		##	This line can be commented to turn this behavior off (for example if you
+		##		end up with no data bars in ArcGIS 10.0):
 		arcpy.env.extent = ""
+
 		outRas = arcpy.FeatureToRaster_conversion(data_path + country + "/" + dataset_folder + "/Derived/" + dataset_name + ".shp", "FID", tmpRas1, 100)
 		print("PROCESSED:  " + dataset_folder + " Feature to Raster")
 		arcpy.env.extent = tmp_extent
@@ -1345,9 +1357,10 @@ for dataset_folder in dataset_folders:
 
 		else:
 			##	Process as a raster:
+			dataset_path = data_path + country + "/" + dataset_folder + "/" + dataset_orig_name
 
 			##	Determine whether the raster is binary or continuous:
-			unique_value_count_result = arcpy.GetRasterProperties_management(dataset_orig_name, "UNIQUEVALUECOUNT")
+			unique_value_count_result = arcpy.GetRasterProperties_management(dataset_path, "UNIQUEVALUECOUNT")
 			unique_value_count = unique_value_count_result.getOutput(0)
 
 			if unique_value_count <= 3:

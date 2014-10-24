@@ -40,6 +40,11 @@
 execfile("01.0 - Configuration.py.r")
 
 
+##	Round to whole population counts?
+round_counts = False
+
+
+
 ##	TODO: Eventually this can be set in the Metadata.r file and pulled
 ##		via JSON but for now we will set it here, you must make
 ##		sure it matches the versioning in the Metadata.r file:
@@ -54,8 +59,8 @@ execfile("01.0 - Configuration.py.r")
 ##			recent census data to	2010 (i.e. from 2009 to 2010 for Vietnam) -
 ##			so calculation, for	VNM, is for one year:
 GR_years = [2010, 2015, 2020]
-GR_urb = [1.545272082, 1.935179332, 2.411381935]
-GR_rur = [1.19458638, 1.356353705, 1.512554586]
+GR_urb = [0.961943079,1.05992696,1.159165095]
+GR_rur = [0.986294783,1.020915731,1.039978459]
 
 
 ##	Processing flags:
@@ -68,12 +73,11 @@ UNADJUST = [True, True, True]
 ##		that year - needed if you want to adjust map for U.N. esimates.
 ##		U.N. estimates are from the World Urbanization Prospects
 ##		(http://esa.un.org/unpd/wup/index.htm)
-UNPOP = [8626000, 9793000, 10923000]
+UNPOP = [5788000, 6213000, 6603000]
 
 
 ##	Should we skip processing and creation for any existing data sets:
 skip_existing = True
-
 
 ##	END:	Set per-country configuration options
 #####
@@ -92,9 +96,9 @@ skip_existing = True
 #####
 ##	BEGIN:	Set general configuration options
 
-data_path = root_path + "data/" + country + "/"
-output_path = root_path + "output/" + country + "/"
-tmp_path = output_path + "tmp/"
+data_path = root_path + "/data/" + country + "/"
+output_path = root_path + "/output/" + country + "/"
+tmp_path = output_path + "/tmp/"
 
 
 ##	Input projection is configured for each country based on the most
@@ -125,6 +129,9 @@ from arcpy.sa import *
 
 
 ##	Configure arcpy:
+
+# Set the compression environment to LZ77:
+arcpy.env.compression = "LZ77"
 
 ##	Should we overwrite any already existing derived data:
 overwrite = True
@@ -173,9 +180,17 @@ else:
 
 
 ##	Datasets:
+
 ##	Estimated population density from randomForest to be used as density
-##		weightings (gridx) from the old model:
-popdensity_weighting = output_path + "predict_density.img"
+##		weightings (gridx) from the old model, a file that should be in the
+##		directory (we changed formats between version numbers so check for both:
+dataset_path = glob.glob( output_path + "predict_density.*" )
+if dataset_path:
+	popdensity_weighting = dataset_path[0]
+else:
+	print("ERROR:  No \"predict_density\" TIF or IMG found in the output folder!  You first need to run the 1.3 R script!")
+	exit()
+
 
 
 ##	Population data
@@ -284,7 +299,7 @@ print("POPMAP: Begin creating population redistribution...")
 
 print("PPP: Using census file - " + adminpop)
 
-gridp = arcpy.FeatureToRaster_conversion('admin_Union', 'POP', 'gridp.img', '0.0008333')
+gridp = arcpy.FeatureToRaster_conversion('admin_Union', 'POP', 'gridp.tif', '0.0008333')
 gridy = arcpy.sa.ZonalStatistics('admin_Union', 'ADMINID', popdensity_weighting_final, 'SUM', 'DATA')
 
 
@@ -297,7 +312,13 @@ census_year = row.YEARPOP
 
 ##	Calculate population map for census year:
 print("PPP: Calculating People Per Pixel " + str(census_year))
-popmap = gridp * Raster(popdensity_weighting_final) / gridy
+if (round_counts):
+	##	Int() just truncates to integer values (note any populationcounts >
+	##		greater than 2,147,483,647 (maximum size determined by 2^31-1)
+	##		will be set to NoData:
+	popmap = Int((gridp * Raster(popdensity_weighting_final) / gridy) + 0.5)
+else:
+	popmap = gridp * Raster(popdensity_weighting_final) / gridy
 
 ##	NOTE: So there's a bug in the arcpy raster optimization that
 ##		often, even though you're specifying the .save() option will not
@@ -314,18 +335,36 @@ popmap = Raster(outPath)
 
 i = 0
 for popyear in GR_years:
-	print("PPP: Calculating People Per Pixel " + str(popyear))
-	popmap_year = popmap * (landcover != 190.0) * GR_rur[i] + popmap * (landcover == 190.0) * GR_urb[i]
-	outPath = output_path + country + "_ppp_v" + rf_version + "_" + str(GR_years[i]) + ".tif"
-	popmap_year.save(outPath)
-	popmap_year = None
-	popmap_year = Raster(outPath)
+	if popyear != census_year:
+		print("PPP: Calculating People Per Pixel " + str(popyear))
+		if (round_counts):
+			##	Int() just truncates to integer values (note any populationcounts >
+			##		greater than 2,147,483,647 (maximum size determined by 2^31-1)
+			##		will be set to NoData:
+			popmap_year = Int((popmap * (landcover != 190.0) * GR_rur[i] + popmap * (landcover == 190.0) * GR_urb[i]) + 0.5)
+		else:
+			popmap_year = popmap * (landcover != 190.0) * GR_rur[i] + popmap * (landcover == 190.0) * GR_urb[i]
+
+		outPath = output_path + country + "_ppp_v" + rf_version + "_" + str(GR_years[i]) + ".tif"
+		popmap_year.save(outPath)
+		popmap_year = None
+		popmap_year = Raster(outPath)
+	else:
+		popmap_year = popmap
 
 	if UNADJUST[i]:
 		print("PPP: Calculating People Per Pixel, UN Adjusted " + str(popyear))
 		zonsum = ZonalStatistics('admin_Union',"ISO", popmap_year, "SUM","DATA")
 		const = zonsum * 0 + UNPOP[i]
-		popmap_year_adj = popmap_year * (const / zonsum)
+
+		if (round_counts):
+			##	Int() just truncates to integer values (note any populationcounts >
+			##		greater than 2,147,483,647 (maximum size determined by 2^31-1)
+			##		will be set to NoData:
+			popmap_year_adj = Int( (popmap_year * (const / zonsum)) + 0.5 )
+		else:
+			popmap_year_adj = popmap_year * (const / zonsum)
+
 		outPath = output_path + country + "_ppp_v" + rf_version + "_" + str(GR_years[i]) + "_UNadj.tif"
 		popmap_year_adj.save(outPath)
 		popmap_year_adj = None
@@ -390,7 +429,14 @@ census_year = row.YEARPOP
 
 ##	Calculate population map for census year:
 print("PPHa: Calculating People Per Hectare " + str(census_year))
-popmap = gridp * Raster(popdensity_weighting_final) / gridy
+if (round_counts):
+	##	Int() just truncates to integer values (note any populationcounts >
+	##		greater than 2,147,483,647 (maximum size determined by 2^31-1)
+	##		will be set to NoData:
+	popmap = Int( (gridp * Raster(popdensity_weighting_final) / gridy) + 0.5 )
+else:
+	popmap = gridp * Raster(popdensity_weighting_final) / gridy
+
 outPath = output_path + country + "_pph_v" + rf_version + "_" + str(census_year) + ".tif"
 popmap.save(outPath)
 popmap = None
@@ -399,18 +445,36 @@ popmap = Raster(outPath)
 
 i = 0
 for popyear in GR_years:
-	print("PPHa: Calculating People Per Hectare " + str(popyear))
-	popmap_year = popmap * (landcover != 190.0) * GR_rur[i] + popmap * (landcover == 190.0) * GR_urb[i]
-	outPath = output_path + country + "_pph_v" + rf_version + "_" + str(GR_years[i]) + ".tif"
-	popmap_year.save(outPath)
-	popmap_year = None
-	popmap_year = Raster(outPath)
+	if popyear != census_year:
+		print("PPHa: Calculating People Per Hectare " + str(popyear))
+		if (round_counts):
+			##	Int() just truncates to integer values (note any populationcounts >
+			##		greater than 2,147,483,647 (maximum size determined by 2^31-1)
+			##		will be set to NoData:
+			popmap_year = Int( (popmap * (landcover != 190.0) * GR_rur[i] + popmap * (landcover == 190.0) * GR_urb[i]) + 0.5 )
+		else:
+			popmap_year = popmap * (landcover != 190.0) * GR_rur[i] + popmap * (landcover == 190.0) * GR_urb[i]
+
+		outPath = output_path + country + "_pph_v" + rf_version + "_" + str(GR_years[i]) + ".tif"
+		popmap_year.save(outPath)
+		popmap_year = None
+		popmap_year = Raster(outPath)
+	else:
+		popmap_year = popmap
 
 	if UNADJUST[i]:
 		print("PPHa: Calculating People Per Hectare, UN Adjusted " + str(popyear))
 		zonsum = ZonalStatistics('admin_Union_prj',"ISO", popmap_year, "SUM","DATA")
 		const = zonsum * 0 + UNPOP[i]
-		popmap_year_adj = popmap_year * (const / zonsum)
+
+		if (round_counts):
+			##	Int() just truncates to integer values (note any populationcounts >
+			##		greater than 2,147,483,647 (maximum size determined by 2^31-1)
+			##		will be set to NoData:
+			popmap_year_adj = Int( (popmap_year * (const / zonsum)) + 0.5 )
+		else:
+			popmap_year_adj = popmap_year * (const / zonsum)
+
 		outPath = output_path + country + "_pph_v" + rf_version + "_" + str(GR_years[i]) + "_UNadj.tif"
 		popmap_year_adj.save(outPath)
 		popmap_year_adj = None

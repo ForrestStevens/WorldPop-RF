@@ -1,0 +1,1 @@
+".\PyScripter\PyScripter.exe"

@@ -18,13 +18,12 @@ source("01.0 - Configuration.py.r")
 
 
 ##	Load the metadata from the file created in the country's /data folder:
-project_path <- paste(root_path, "data/", country, "/", sep="")
+project_path <- paste(root_path, "/data/", country, "/", sep="")
 source(paste(project_path, "Metadata.r", sep=""))
 
 ##	WARNING: Though it's possible to knit this file directly you should
-##		just save it after changing the country above and then run the
-##		"Generate Metadata Report.r" script to knit, copy and rename 
-##		the report itself!
+##		just run the "Generate Metadata Report.r" script to knit, copy and 
+##		rename the report itself!
 
 ##	END:	Load configuration options
 #####
@@ -94,7 +93,8 @@ max_pop <- 35
 
 load(paste(output_path_tmp, "popfit_final.RData", sep=""))
 load(paste(output_path_tmp, "popfit_quant.RData", sep=""))
-predict_density <- raster(paste(output_path, "predict_density.img", sep=""))
+dataset_name = list.files(output_path, "predict_density.tif$|predict_density.img$")[1]
+predict_density <- raster(paste(output_path, dataset_name, sep=""))
 
 
 ##	We need to check to see if we used an alternative census file for map

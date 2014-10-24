@@ -411,7 +411,7 @@ if (("NPP" %in% names(metadata)) & ("NPP" %in% default_datasets) & (is.na(datase
 
 
 ##	Return our working directory to the source folder:
-setwd(paste(root_path, "src", sep=""))
+setwd(paste(root_path, "/src", sep=""))
 
 
 ##	END:	Download and process MODIS products:
