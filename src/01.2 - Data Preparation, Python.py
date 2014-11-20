@@ -175,6 +175,13 @@ def process_point_area(dataset_folder):
 	##		and proportions per	81 hectares (11 x 11 cell moving window,
 	##		specified as a NbrCircle with radius 5):
 
+	##	NOTE: I commented out the proportion processing parts of the data
+	##		preparation script and Random Forest estimationg code, as well
+	##		as removed those specifications from the /! Default/ and RWA sample
+	##		Metadata.r files.  These were always excluded from our analyses and
+	##		so therefore I decided that there was no reason to include them in
+	##		Derived data production.
+
 	dataset_folder = dataset_folder
 	dataset_name = dataset_folder.lower()
 
