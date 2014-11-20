@@ -15,13 +15,13 @@ execfile("01.0 - Configuration.py.r")
 ##		in case a UTM zone needs to be edited, etc.:
 
 ##	For KHM, VNM:
-intermediate_prj = "PROJCS['WGS_1984_UTM_Zone_48N',GEOGCS['GCS_WGS_1984',DATUM['D_WGS_1984',SPHEROID['WGS_1984',6378137.0,298.257223563]],PRIMEM['Greenwich',0.0],UNIT['Degree',0.0174532925199433]],PROJECTION['Transverse_Mercator'],PARAMETER['False_Easting',500000.0],PARAMETER['False_Northing',0.0],PARAMETER['Central_Meridian',105.0],PARAMETER['Scale_Factor',0.9996],PARAMETER['Latitude_Of_Origin',0.0],UNIT['Meter',1.0]]"
+#intermediate_prj = "PROJCS['WGS_1984_UTM_Zone_48N',GEOGCS['GCS_WGS_1984',DATUM['D_WGS_1984',SPHEROID['WGS_1984',6378137.0,298.257223563]],PRIMEM['Greenwich',0.0],UNIT['Degree',0.0174532925199433]],PROJECTION['Transverse_Mercator'],PARAMETER['False_Easting',500000.0],PARAMETER['False_Northing',0.0],PARAMETER['Central_Meridian',105.0],PARAMETER['Scale_Factor',0.9996],PARAMETER['Latitude_Of_Origin',0.0],UNIT['Meter',1.0]]"
 ##	For KEN:
 #intermediate_prj = "PROJCS['WGS_1984_UTM_Zone_37N',GEOGCS['GCS_WGS_1984',DATUM['D_WGS_1984',SPHEROID['WGS_1984',6378137.0,298.257223563]],PRIMEM['Greenwich',0.0],UNIT['Degree',0.0174532925199433]],PROJECTION['Transverse_Mercator'],PARAMETER['False_Easting',500000.0],PARAMETER['False_Northing',0.0],PARAMETER['Central_Meridian',39.0],PARAMETER['Scale_Factor',0.9996],PARAMETER['Latitude_Of_Origin',0.0],UNIT['Meter',1.0]]"
 ##	For NGA:
 #intermediate_prj = "PROJCS['WGS_1984_UTM_Zone_32N',GEOGCS['GCS_WGS_1984',DATUM['D_WGS_1984',SPHEROID['WGS_1984',6378137.0,298.257223563]],PRIMEM['Greenwich',0.0],UNIT['Degree',0.0174532925199433]],PROJECTION['Transverse_Mercator'],PARAMETER['False_Easting',500000.0],PARAMETER['False_Northing',0.0],PARAMETER['Central_Meridian',9.0],PARAMETER['Scale_Factor',0.9996],PARAMETER['Latitude_Of_Origin',0.0],UNIT['Meter',1.0],AUTHORITY['EPSG',32632]]"
 ##	For RWA, right on edge of 35S and 36S so modified to 35.5S with meridian 30.0:
-#intermediate_prj = "PROJCS['WGS_1984_UTM_Zone_35.5S',GEOGCS['GCS_WGS_1984',DATUM['D_WGS_1984',SPHEROID['WGS_1984',6378137.0,298.257223563]],PRIMEM['Greenwich',0.0],UNIT['Degree',0.0174532925199433]],PROJECTION['Transverse_Mercator'],PARAMETER['False_Easting',500000.0],PARAMETER['False_Northing',10000000.0],PARAMETER['Central_Meridian',30.0],PARAMETER['Scale_Factor',0.9996],PARAMETER['Latitude_Of_Origin',0.0],UNIT['Meter',1.0],AUTHORITY['EPSG',32735.5]]"
+intermediate_prj = "PROJCS['WGS_1984_UTM_Zone_35.5S',GEOGCS['GCS_WGS_1984',DATUM['D_WGS_1984',SPHEROID['WGS_1984',6378137.0,298.257223563]],PRIMEM['Greenwich',0.0],UNIT['Degree',0.0174532925199433]],PROJECTION['Transverse_Mercator'],PARAMETER['False_Easting',500000.0],PARAMETER['False_Northing',10000000.0],PARAMETER['Central_Meridian',30.0],PARAMETER['Scale_Factor',0.9996],PARAMETER['Latitude_Of_Origin',0.0],UNIT['Meter',1.0],AUTHORITY['EPSG',32735.5]]"
 ##	For IDN:
 #intermediate_prj = 'PROJCS["Asia_Lambert_Conformal_Conic",GEOGCS["GCS_WGS_1984",DATUM["D_WGS_1984",SPHEROID["WGS_1984",6378137.0,298.257223563]],PRIMEM["Greenwich",0.0],UNIT["Degree",0.0174532925199433]],PROJECTION["Lambert_Conformal_Conic"],PARAMETER["False_Easting",0.0],PARAMETER["False_Northing",0.0],PARAMETER["Central_Meridian",105.0],PARAMETER["Standard_Parallel_1",30.0],PARAMETER["Standard_Parallel_2",62.0],PARAMETER["Latitude_Of_Origin",0.0],UNIT["Meter",1.0],AUTHORITY["ESRI",102012]]'
 ##	For PAN:
@@ -119,6 +119,9 @@ arcpy.env.compression = "LZ77"
 overwrite = True
 arcpy.env.overwriteOutput = overwrite
 
+##	Set our default to not build pyramids:
+arcpy.env.pyramid = "PYRAMIDS 0"
+
 
 ##	END: Import packages and set GeoProcessing environment
 #####
@@ -142,11 +145,20 @@ def process_linear(dataset_folder):
 	dataset_name = dataset_folder.lower()
 
 	print("PROCESSING:  " + dataset_name + " Distance")
-	outPath = data_path + country + "/" + dataset_folder + "/Derived/" + dataset_name + "_dst" +".tif"
+	out_path = data_path + country + "/" + dataset_folder + "/Derived/" + dataset_name + "_dst" +".tif"
 
-	if not os.path.isfile(outPath) or not skip_existing:
+	if not os.path.isfile(out_path) or not skip_existing:
 		outRas = arcpy.sa.EucDistance(data_path + country + "/" + dataset_folder + "/Derived/" + dataset_name + ".shp")
-		outRas.save(outPath)
+		#outRas.save(out_path)
+
+		##	NOTE: Instead of just saving the output to a file using the arcpy 
+		##		raster object method, we use CopyRaster here instead which allows 
+		##		data compression to be implemented correctly.  We also set the 
+		##		arcpy.env.pyramid variable to not produce pyramids but by default
+		##		the CopyRaster call creates them, so we have to call the function
+		##		to remove them according to the environment setting above:
+		outRas = arcpy.CopyRaster_management(outRas, out_path, "DEFAULTS", "0", "-999", "NONE", "NONE", "32_BIT_FLOAT")
+		outRas = arcpy.BuildPyramids_management(outRas)
 
 		##	NOTE: So there's a bug in the arcpy raster optimization that
 		##		often, even though you're specifying the .save() option will not
@@ -210,29 +222,38 @@ def process_point_area(dataset_folder):
 		outRas = None
 		outRas = Raster(tmpRas1) * 1
 		print("PROCESSED:  " + dataset_folder + " Multiplication")
-		outRas.save( tmpRas2 )
+		#outRas.save( tmpRas2 )
+		outRas = arcpy.CopyRaster_management(outRas, tmpRas2, "DEFAULTS", "0", "4294967295", "NONE", "NONE", "32_BIT_UNSIGNED")
+		outRas = arcpy.BuildPyramids_management(outRas)
 		outRas = None
 		print("PROCESSED:  " + dataset_folder + " Output Saved")
 
 
 		##	Create distance-to raster:
-		outPath = data_path + country + "/" + dataset_folder + "/Derived/" + dataset_name + "_dst.tif"
+		out_path = data_path + country + "/" + dataset_folder + "/Derived/" + dataset_name + "_dst.tif"
 		outRas = arcpy.sa.EucDistance(tmpRas)
-		outRas.save(outPath)
+		#outRas.save(out_path)
+		outRas = arcpy.CopyRaster_management(outRas, out_path, "DEFAULTS", "0", "-999", "NONE", "NONE", "32_BIT_FLOAT")
+		outRas = arcpy.BuildPyramids_management(outRas)
 		outRas = None
 
 		##	Save the binary classification raster:
-		outPath = data_path + country + "/" + dataset_folder + "/Derived/" + dataset_name + "_cls.tif"
+		out_path = data_path + country + "/" + dataset_folder + "/Derived/" + dataset_name + "_cls.tif"
 		outRas =  IsNull(Raster(tmpRas)) == 0
-		outRas.save(outPath)
+		#outRas.save(out_path)
+		outRas = arcpy.CopyRaster_management(outRas, out_path, "DEFAULTS", "0", "3", "NONE", "NONE", "2_BIT")
+		outRas = arcpy.BuildPyramids_management(outRas)
 		outRas = None
 
-		##	Calculate proportion of cover:
-		outRas = Raster(outPath)
-		#outRas = arcpy.sa.FocalStatistics(outRas,NbrRectangle(11,11,"CELL"),"MEAN","DATA")
-		outRas = arcpy.sa.FocalStatistics(outRas,NbrCircle(5,"CELL"),"MEAN","DATA")
-		outRas.save(data_path + country + "/" + dataset_folder + "/Derived/" + dataset_name + "_prp.tif")
-		outRas = None
+		###	Calculate proportion of cover:
+		#outRas = Raster(out_path)
+		#out_path = data_path + country + "/" + dataset_folder + "/Derived/" + dataset_name + "_prp.tif"
+		##outRas = arcpy.sa.FocalStatistics(outRas,NbrRectangle(11,11,"CELL"),"MEAN","DATA")
+		#outRas = arcpy.sa.FocalStatistics(outRas,NbrCircle(5,"CELL"),"MEAN","DATA")
+		##outRas.save(out_path)
+		#outRas = arcpy.CopyRaster_management(outRas, out_path, "DEFAULTS", "0", "-999", "NONE", "NONE", "32_BIT_FLOAT")
+		#outRas = arcpy.BuildPyramids_management(outRas)
+		#outRas = None
 
 
 def process_raster_binary(dataset_folder):
@@ -264,13 +285,15 @@ def process_raster_binary(dataset_folder):
 	if not os.path.isfile(out_path) or not skip_existing:
 		arcpy.ProjectRaster_management(in_path,out_path,intermediate_prj,"NEAREST","100","#","#",input_prj)
 
-		print("Proportion:  " + dataset_folder)
-		#outRas = arcpy.sa.FocalStatistics(out_path,NbrRectangle(11,11,"CELL"),"MEAN","DATA")
-		outRas = arcpy.sa.FocalStatistics(out_path,NbrCircle(5,"CELL"),"MEAN","DATA")
+		#print("Proportion:  " + dataset_folder)
+		##outRas = arcpy.sa.FocalStatistics(out_path,NbrRectangle(11,11,"CELL"),"MEAN","DATA")
+		#outRas = arcpy.sa.FocalStatistics(out_path,NbrCircle(5,"CELL"),"MEAN","DATA")
 
-		out_path = out_path[:-8] + "_prp.tif"
-		outRas.save(out_path)
-		outRas = None
+		#out_path = out_path[:-8] + "_prp.tif"
+		##outRas.save(out_path)
+		#outRas = arcpy.CopyRaster_management(outRas, out_path, "DEFAULTS", "0", "-999", "NONE", "NONE", "32_BIT_FLOAT")
+		#outRas = arcpy.BuildPyramids_management(outRas)
+		#outRas = None
 
 
 		print("Distance:  " + dataset_folder)
@@ -279,7 +302,9 @@ def process_raster_binary(dataset_folder):
 		outRas = arcpy.sa.EucDistance(tmpRas)
 
 		out_path = out_path[:-8] + "_dst.tif"
-		outRas.save(out_path)
+		#outRas.save(out_path)
+		outRas = arcpy.CopyRaster_management(outRas, out_path, "DEFAULTS", "0", "-999", "NONE", "NONE", "32_BIT_FLOAT")
+		outRas = arcpy.BuildPyramids_management(outRas)
 		outRas = None
 
 
@@ -526,16 +551,18 @@ for lc in ['011', '040', '130', '140', '150', '160', '190', '200', '210', '230',
 	out_path = landcover_path[:-4] + "_cls" + lc + ".tif"
 	if not os.path.isfile(out_path) or not skip_existing:
 		outRas =  Raster(landcover_path) == int(lc)
-		outRas.save(out_path)
+		#outRas.save(out_path)
+		outRas = arcpy.CopyRaster_management(outRas, out_path, "DEFAULTS", "0", "3", "NONE", "NONE", "2_BIT")
+		outRas = arcpy.BuildPyramids_management(outRas)
 		outRas = None
 
 	in_path = out_path
-	out_path = landcover_path[:-4] + "_prp" + lc + ".tif"
-	if not os.path.isfile(out_path) or not skip_existing:
-		#outRas = arcpy.sa.FocalStatistics(in_path,NbrRectangle(11,11,"CELL"),"MEAN","DATA")
-		outRas = arcpy.sa.FocalStatistics(in_path,NbrCircle(5,"CELL"),"MEAN","DATA")
-		outRas.save(out_path)
-		outRas = None
+	#out_path = landcover_path[:-4] + "_prp" + lc + ".tif"
+	#if not os.path.isfile(out_path) or not skip_existing:
+	#	#outRas = arcpy.sa.FocalStatistics(in_path,NbrRectangle(11,11,"CELL"),"MEAN","DATA")
+	#	outRas = arcpy.sa.FocalStatistics(in_path,NbrCircle(5,"CELL"),"MEAN","DATA")
+	#	outRas.save(out_path)
+	#	outRas = None
 
 
 ##	Process land cover combinations of interest:
@@ -546,18 +573,22 @@ print(lc)
 out_path = landcover_path[:-4] + "_cls" + lc + ".tif"
 if not os.path.isfile(out_path) or not skip_existing:
 	outRas =  (Raster(landcover_path) == 190) + (Raster(landcover_path) == 240)
-	outRas.save(out_path)
+	#outRas.save(out_path)
+	outRas = arcpy.CopyRaster_management(outRas, out_path, "DEFAULTS", "0", "3", "NONE", "NONE", "2_BIT")
+	outRas = arcpy.BuildPyramids_management(outRas)
 	outRas = None
 
 
 in_path = out_path
 out_path = landcover_path[:-4] + "_prp" + lc + ".tif"
 
-if not os.path.isfile(out_path) or not skip_existing:
-	#outRas = arcpy.sa.FocalStatistics(in_path,NbrRectangle(11,11,"CELL"),"MEAN","DATA")
-	outRas = arcpy.sa.FocalStatistics(in_path,NbrCircle(5,"CELL"),"MEAN","DATA")
-	outRas.save(out_path)
-	outRas = None
+#if not os.path.isfile(out_path) or not skip_existing:
+#	#outRas = arcpy.sa.FocalStatistics(in_path,NbrRectangle(11,11,"CELL"),"MEAN","DATA")
+#	outRas = arcpy.sa.FocalStatistics(in_path,NbrCircle(5,"CELL"),"MEAN","DATA")
+#	#outRas.save(out_path)
+#	outRas = arcpy.CopyRaster_management(outRas, out_path, "DEFAULTS", "0", "-999", "NONE", "NONE", "32_BIT_FLOAT")
+#	outRas = arcpy.BuildPyramids_management(outRas)
+#	outRas = None
 
 
 
@@ -571,7 +602,9 @@ for lc in ['011', '040', '130', '140', '150', '160', '190', '200', '210', '230',
 		tmpRas =  SetNull(lcRas != 1, 1)
 		outRas = arcpy.sa.EucDistance(tmpRas)
 
-		outRas.save(out_path)
+		#outRas.save(out_path)
+		outRas = arcpy.CopyRaster_management(outRas, out_path, "DEFAULTS", "0", "-999", "NONE", "NONE", "32_BIT_FLOAT")
+		outRas = arcpy.BuildPyramids_management(outRas)
 		outRas = None
 
 
@@ -639,7 +672,9 @@ if ("NPP" in dataset_folders):
 		output_name = "npp.tif"
 		out_path = tmp_path + "/" + output_name
 
-		outCon.save(out_path)
+		#outCon.save(out_path)
+		outCon = arcpy.CopyRaster_management(outCon, out_path, "DEFAULTS", "0", "65535", "NONE", "NONE", "16_BIT_UNSIGNED")
+		outCon = arcpy.BuildPyramids_management(outCon)
 		outCon = None
 
 
@@ -1166,7 +1201,9 @@ if ("Elevation" in dataset_folders):
 		output_name = "elevation_slope.tif"
 		out_path = tmp_path + "/" + output_name
 
-		outRas.save(out_path)
+		#outRas.save(out_path)
+		outRas = arcpy.CopyRaster_management(outRas, out_path, "DEFAULTS", "0", "-999", "NONE", "NONE", "32_BIT_FLOAT")
+		outRas = arcpy.BuildPyramids_management(outRas)
 		outRas = None
 		print("	FINISHED: Slope...")
 
