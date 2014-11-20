@@ -152,6 +152,9 @@ arcpy.env.overwriteOutput = overwrite
 ##	Set the output coordinate system and extent to that of our buffer:
 arcpy.env.outputCoordinateSystem = final_prj
 
+##	Set our default to not build pyramids:
+arcpy.env.pyramid = "PYRAMIDS 0"
+
 
 ##	END: Import packages and set GeoProcessing environment
 #####
@@ -398,7 +401,15 @@ if not dataset_path or not skip_existing:
 	##		of ArcGIS and arcpy set the raster object to None like this.
 	##		Discovered here:
 	##			http://gis.stackexchange.com/questions/46897/saving-rasters-in-a-python-for-loop-fails-only-on-last-iteration
-	popmap.save(outPath)
+	
+	##		Also, in order to implement compression and make sure we are only using
+	##		32-bit Floating output I implemented a temporary raster save plus 
+	##		call to copy raster, subsequently removing the temporary file and 
+	##		resulting output pyramid layer for reduced data storage:
+	#popmap.save(outPath + ".temp.tif")
+	#popmap = None
+	popmap = arcpy.CopyRaster_management(popmap, outPath, "DEFAULTS", "0", "-999", "NONE", "NONE", "32_BIT_FLOAT")
+	popmap = arcpy.BuildPyramids_management(popmap)
 	popmap = None
 
 popmap = Raster(outPath)
@@ -421,7 +432,10 @@ for popyear in GR_years:
 			else:
 				popmap_year = popmap * (landcover != 190.0) * GR_rur[i] + popmap * (landcover == 190.0) * GR_urb[i]
 
-			popmap_year.save(outPath)
+			#popmap_year.save(outPath)
+			#popmap_year = None
+			popmap_year = arcpy.CopyRaster_management(popmap_year, outPath, "DEFAULTS", "0", "-999", "NONE", "NONE", "32_BIT_FLOAT")
+			popmap_year = arcpy.BuildPyramids_management(popmap_year)
 			popmap_year = None
 
 		popmap_year = Raster(outPath)
@@ -446,7 +460,10 @@ for popyear in GR_years:
 			else:
 				popmap_year_adj = popmap_year * (const / zonsum)
 
-			popmap_year_adj.save(outPath)
+			#popmap_year_adj.save(outPath)
+			#popmap_year_adj = None
+			popmap_year_adj = arcpy.CopyRaster_management(popmap_year_adj, outPath, "DEFAULTS", "0", "-999", "NONE", "NONE", "32_BIT_FLOAT")
+			popmap_year_adj = arcpy.BuildPyramids_management(popmap_year_adj)
 			popmap_year_adj = None
 
 		popmap_year_adj = Raster(outPath)
@@ -557,7 +574,10 @@ if not dataset_path or not skip_existing:
 	else:
 		popmap = gridp * Raster(popdensity_weighting_final) / gridy
 
-	popmap.save(outPath)
+	#popmap.save(outPath)
+	#popmap = None
+	popmap = arcpy.CopyRaster_management(popmap, outPath, "DEFAULTS", "0", "-999", "NONE", "NONE", "32_BIT_FLOAT")
+	popmap = arcpy.BuildPyramids_management(popmap)
 	popmap = None
 
 popmap = Raster(outPath)
@@ -580,7 +600,10 @@ for popyear in GR_years:
 			else:
 				popmap_year = popmap * (landcover != 190.0) * GR_rur[i] + popmap * (landcover == 190.0) * GR_urb[i]
 
-			popmap_year.save(outPath)
+			#popmap_year.save(outPath)
+			#popmap_year = None
+			popmap_year = arcpy.CopyRaster_management(popmap_year, outPath, "DEFAULTS", "0", "-999", "NONE", "NONE", "32_BIT_FLOAT")
+			popmap_year = arcpy.BuildPyramids_management(popmap_year)
 			popmap_year = None
 
 		popmap_year = Raster(outPath)
@@ -606,7 +629,10 @@ for popyear in GR_years:
 			else:
 				popmap_year_adj = popmap_year * (const / zonsum)
 
-			popmap_year_adj.save(outPath)
+			#popmap_year_adj.save(outPath)
+			#popmap_year_adj = None
+			popmap_year_adj = arcpy.CopyRaster_management(popmap_year_adj, outPath, "DEFAULTS", "0", "-999", "NONE", "NONE", "32_BIT_FLOAT")
+			popmap_year_adj = arcpy.BuildPyramids_management(popmap_year_adj)
 			popmap_year_adj = None
 
 		popmap_year_adj = Raster(outPath)
