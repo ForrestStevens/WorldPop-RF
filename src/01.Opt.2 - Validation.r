@@ -193,6 +193,10 @@ predicted <- output_dbf$RASTERVALU
 rmse <- sqrt(sum((observed - predicted)^2) / length(observed))
 rmse
 
+##	Calculate RMSE - Area Standardized:
+rmse_area <- sqrt(sum(((observed - predicted)/area)^2) / length(observed))
+rmse_area
+
 ##	Calculate %RMSE (percentage of the mean census block size):
 pct_rmse <- rmse/mean(observed)*100
 pct_rmse
@@ -211,6 +215,7 @@ abline(a=0, b=1, lty=2, col="darkgrey")
 text(y=max(c(observed, predicted))/10*4, x=max(c(observed, predicted))/10*5.5, paste("RMSE: ", format(rmse, nsmall=2), sep=""), pos=4)
 text(y=max(c(observed, predicted))/10*3, x=max(c(observed, predicted))/10*5.5, paste("%RMSE: ", format(pct_rmse, nsmall=2), sep=""), pos=4)
 text(y=max(c(observed, predicted))/10*2, x=max(c(observed, predicted))/10*5.5, paste("MAE: ", format(mae, nsmall=2), sep=""), pos=4)
+text(y=max(c(observed, predicted))/10*1, x=max(c(observed, predicted))/10*5.5, paste("RMSE_area: ", format(rmse_area, nsmall=2), sep=""), pos=4)
 dev.off()
 
 
@@ -221,6 +226,7 @@ abline(a=0, b=1, lty=2, col="darkgrey")
 text(y=max(c(observed, predicted))/10*4, x=max(c(observed, predicted))/10*5.5, paste("RMSE: ", format(rmse, nsmall=2), sep=""), pos=4)
 text(y=max(c(observed, predicted))/10*3, x=max(c(observed, predicted))/10*5.5, paste("%RMSE: ", format(pct_rmse, nsmall=2), sep=""), pos=4)
 text(y=max(c(observed, predicted))/10*2, x=max(c(observed, predicted))/10*5.5, paste("MAE: ", format(mae, nsmall=2), sep=""), pos=4)
+text(y=max(c(observed, predicted))/10*1, x=max(c(observed, predicted))/10*5.5, paste("RMSE_area: ", format(rmse_area, nsmall=2), sep=""), pos=4)
 
 
 ##	Return our working directory to the source folder:
