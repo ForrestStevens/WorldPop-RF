@@ -265,7 +265,7 @@ if (arcpy.Exists("admin_Union") == False): arcpy.MakeFeatureLayer_management("/a
 
 if (len(arcpy.ListFields('admin_Union', "POP")) == 0):
 	arcpy.AddField_management('admin_Union', 'POP', 'Double')
-arcpy.CalculateField_management('admin_Union', 'POP', ' [ADMINPOP] ', '')
+arcpy.CalculateField_management('admin_Union', 'POP', '!ADMINPOP!', 'PYTHON_9.3')
 
 
 ##	We need the landcover file for the country projected into our output projection:
@@ -482,7 +482,7 @@ arcpy.MakeFeatureLayer_management("/admin_Union_prj.shp", "admin_Union_prj")
 
 if (len(arcpy.ListFields('admin_Union_prj', "POP")) == 0):
 	arcpy.AddField_management('admin_Union_prj', 'POP', 'Double')
-arcpy.CalculateField_management('admin_Union_prj', 'POP', ' [ADMINPOP] ', '')
+arcpy.CalculateField_management('admin_Union_prj', 'POP', '!ADMINPOP!', 'PYTHON_9.3')
 if (arcpy.Exists("admin_Union_prj") == False): arcpy.MakeFeatureLayer_management("/admin_Union_prj.shp", "admin_Union_prj")
 
 
