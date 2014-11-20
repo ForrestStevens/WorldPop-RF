@@ -100,19 +100,19 @@ metadata[[var_name]] <- list(
 	dataset_description = "",
 	dataset_class = "raster",
 	derived = c( 
-		"prp011", "cls011", "dst011",
-		"prp040", "cls040", "dst040",
-		"prp130", "cls130", "dst130",
-		"prp140", "cls140", "dst140",
-		"prp150", "cls150", "dst150",
-		"prp160", "cls160", "dst160",
-		"prp190", "cls190", "dst190",
-		"prp200", "cls200", "dst200",
-		"prp210", "cls210", "dst210",
-		"prp230", "cls230", "dst230",
-		"prp240", "cls240", "dst240",
-		"prp250", "cls250", "dst250",
-		"prpBLT", "clsBLT", "dstBLT"
+		"cls011", "dst011",
+		"cls040", "dst040",
+		"cls130", "dst130",
+		"cls140", "dst140",
+		"cls150", "dst150",
+		"cls160", "dst160",
+		"cls190", "dst190",
+		"cls200", "dst200",
+		"cls210", "dst210",
+		"cls230", "dst230",
+		"cls240", "dst240",
+		"cls250", "dst250",
+		"clsBLT", "dstBLT"
 	)
 )
 metadata[[var_name]][["path"]] <- paste(var_folder, metadata[[var_name]]$dataset_name, sep="")
@@ -209,7 +209,7 @@ metadata[[var_name]] <- list(
 	dataset_name = "DEFAULT: Merged pop/builtupp, pop/builtupa, pop/mispopp", 
 	dataset_description = "The VMAP0 data area downloaded as separate files, grouped roughly by continent, and merged into individual shapefiles for subsetting and further processing for population mapping efforts.  These data were obtained directly from the original VMAP0 data sources provided by the NGA and pre-processed using Military Analyst in ArcGIS 10.0.  Point data sources are buffered to 100 m and then all polygon data sources are merged to a single shapefile prior to processing.",
 	dataset_class = "polygon",
-	derived = c("cls", "dst", "prp")
+	derived = c("cls", "dst")
 )
 metadata[[var_name]][["path"]] <- paste(project_path, metadata[[var_name]]$dataset_folder, "/", metadata[[var_name]]$dataset_name, sep="")
 
@@ -222,7 +222,7 @@ metadata[[var_name]] <- list(
 	dataset_name = "DEFAULT: hydro/watrcrsl",
 	dataset_description = "The VMAP0 data area downloaded as separate files, grouped roughly by continent, and merged into individual shapefiles for subsetting and further processing for population mapping efforts.  These data were obtained directly from the original VMAP0 data sources provided by the NGA and pre-processed using Military Analyst in ArcGIS 10.0.",
 	dataset_class = "polygon",
-	derived = c("cls", "dst", "prp")
+	derived = c("cls", "dst")
 )
 metadata[[var_name]][["path"]] <- paste(project_path, metadata[[var_name]]$dataset_folder, "/", metadata[[var_name]]$dataset_name, sep="")
 
@@ -235,7 +235,7 @@ metadata[[var_name]] <- list(
 	dataset_name = "DEFAULT: WDPAfgdb_Sept2012.gdb",
 	dataset_description = "These data are compiled by UNEP and distributed via the Protected Planet website.  All protected areas were downloaded regardless of International Union for Conservation of Nature (IUCN) or any other designation, so they include sanctuaries, national parks, game reserves, World Heritage Sites, etc.",
 	dataset_class = "polygon",
-	derived = c("cls", "dst", "prp")
+	derived = c("cls", "dst")
 )
 metadata[[var_name]][["path"]] <- paste(project_path, metadata[[var_name]]$dataset_folder, "/", metadata[[var_name]]$dataset_name, sep="")
 
@@ -248,7 +248,7 @@ metadata[[var_name]] <- list(
 	dataset_name = "DEFAULT: schneider-urban.shp",
 	dataset_description = "These data were constructed from MODIS-derived imagery and provided to WorldPop researchers by Schneider, et al. as part of a global urban extents datasets.",
 	dataset_class = "polygon",
-	derived = c("cls", "dst", "prp")
+	derived = c("cls", "dst")
 )
 metadata[[var_name]][["path"]] <- paste(project_path, metadata[[var_name]]$dataset_folder, "/", metadata[[var_name]]$dataset_name, sep="")
 
@@ -345,25 +345,25 @@ metadata[[var_name]][["path"]] <- paste(project_path, metadata[[var_name]]$datas
 #dataset_derived <- list(
 #	c("area", "buff", "zones"),
 #	c( 
-#		"prp011", "cls011", "dst011",
-#		"prp040", "cls040", "dst040",
-#		"prp130", "cls130", "dst130",
-#		"prp140", "cls140", "dst140",
-#		"prp150", "cls150", "dst150",
-#		"prp160", "cls160", "dst160",
-#		"prp190", "cls190", "dst190",
-#		"prp200", "cls200", "dst200",
-#		"prp210", "cls210", "dst210",
-#		"prp230", "cls230", "dst230",
-#		"prp240", "cls240", "dst240",
-#		"prp250", "cls250", "dst250",
-#		"prpBLT", "clsBLT", "dstBLT"
+#		"cls011", "dst011",
+#		"cls040", "dst040",
+#		"cls130", "dst130",
+#		"cls140", "dst140",
+#		"cls150", "dst150",
+#		"cls160", "dst160",
+#		"cls190", "dst190",
+#		"cls200", "dst200",
+#		"cls210", "dst210",
+#		"cls230", "dst230",
+#		"cls240", "dst240",
+#		"cls250", "dst250",
+#		"clsBLT", "dstBLT"
 #	),
-#	c("prp", "cls", "dst"),
-#	c("prp", "cls", "dst"),
-#	c("prp", "cls", "dst"),
-#	c("prp", "cls", "dst"),
-#	c("prp", "cls", "dst")
+#	c("cls", "dst"),
+#	c("cls", "dst"),
+#	c("cls", "dst"),
+#	c("cls", "dst"),
+#	c("cls", "dst")
 #)
 #
 #for (i in 1:length(var_names)) {
