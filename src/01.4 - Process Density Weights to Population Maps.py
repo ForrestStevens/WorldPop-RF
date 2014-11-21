@@ -65,12 +65,11 @@ use_urban = True
 ##			census_folder option below), it must be the rate from the more
 ##			recent census data to	2010 (i.e. from 2009 to 2010 for Vietnam) -
 ##			so calculation, for	VNM, is for one year:
-GR_years = [2010, 2015, 2020]
-GR_urb = [1.435050442,1.669793557,1.909229963]
-GR_rur = [1.033240521,1.036863198,1.028087212]
+GR_urb = [1.784610171,2.461325436,3.255025143]
+GR_rur = [1.124849442,1.207599938,1.281287482]
 #GR_years = [2000]
-#GR_urb = [1.031691822]
-#GR_rur = [1.006722495]
+#GR_urb = [0.861741446]
+#GR_rur = [0.97488919]67345071]
 
 
 ##	Processing flags:
@@ -84,8 +83,8 @@ UNADJUST = [True, True, True]
 ##		that year - needed if you want to adjust map for U.N. esimates.
 ##		U.N. estimates are from the World Urbanization Prospects
 ##		(http://esa.un.org/unpd/wup/index.htm)
-UNPOP = [87848000,92443000,96355000]
-#UNPOP = [78758000]
+UNPOP = [10837000,12428000,14123000]
+#UNPOP = [8396000]
 
 
 ##	Should we skip processing and creation for any existing data sets:
@@ -358,7 +357,9 @@ if use_urban:
 
 	##	Save this land cover out for testing (can be commented):
 	outPath = output_path + "tmp/landcover_urban.tif"
-	landcover.save(outPath)
+	#landcover.save(outPath)
+	landcover = arcpy.CopyRaster_management(landcover, outPath, "DEFAULTS", "0", "65535", "NONE", "NONE", "16_BIT_UNSIGNED")
+	landcover = arcpy.BuildPyramids_management(landcover)
 
 
 ##	Population redistribution procedure using population from "admin_Union.shp"
@@ -406,7 +407,7 @@ if not dataset_path or not skip_existing:
 	##		32-bit Floating output I implemented a temporary raster save plus 
 	##		call to copy raster, subsequently removing the temporary file and 
 	##		resulting output pyramid layer for reduced data storage:
-	#popmap.save(outPath + ".temp.tif")
+	#popmap.save(outPath)
 	#popmap = None
 	popmap = arcpy.CopyRaster_management(popmap, outPath, "DEFAULTS", "0", "-999", "NONE", "NONE", "32_BIT_FLOAT")
 	popmap = arcpy.BuildPyramids_management(popmap)
