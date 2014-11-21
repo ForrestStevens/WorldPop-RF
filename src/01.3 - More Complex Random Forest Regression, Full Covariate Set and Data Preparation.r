@@ -390,15 +390,15 @@ if (estimate_RF) {
 	##		resulting in odd partial plot relationships:
 	##	Subset data to exclude all proportion covariates:
 
-	###	Remove all proportion data:
+	##	Remove all proportion data:
 	x_data <- x_data[,!grepl("prp", names(x_data))]
-	##	Remove only proportion rural data:
+	###	Remove only proportion rural data:
 	#x_data <- x_data[,!(names(x_data) == "lan_prp240")]
 
 	###	Remove all class data:
 	#x_data <- x_data[,!grepl("cls", names(x_data))]
 
-	###	Remove rural/urban built data, leaving only BLT:
+	##	Remove rural/urban built data, leaving only BLT:
 	x_data <- x_data[,!grepl("190", names(x_data))]
 	x_data <- x_data[,!grepl("240", names(x_data))]
 
@@ -422,9 +422,12 @@ if (estimate_RF) {
 	#x_data <- x_data[,c(1:28)]
 	#x_data <- x_data[,grepl("lan_", names(x_data), perl=T)]
 
-	###	Subset x_data to remove NAs:
+	##	Subset x_data to remove NAs:
 	indexX <- complete.cases(x_data)
-
+	
+	##	Remove any rows that have -9999 in any column,
+	##		indicating missing data or problems in covariate laers:
+	indexX <- indexX & !(apply(x_data==-9999, MARGIN=1, sum, na.rm=T) > 0)
 
 	##	Subset y_data to remove any of interest:
 	#indexY <- y_data < 10 		##	Subset data to remove outliers...

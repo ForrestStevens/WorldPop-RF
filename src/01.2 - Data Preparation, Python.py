@@ -151,13 +151,13 @@ def process_linear(dataset_folder):
 		outRas = arcpy.sa.EucDistance(data_path + country + "/" + dataset_folder + "/Derived/" + dataset_name + ".shp")
 		#outRas.save(out_path)
 
-		##	NOTE: Instead of just saving the output to a file using the arcpy 
-		##		raster object method, we use CopyRaster here instead which allows 
-		##		data compression to be implemented correctly.  We also set the 
+		##	NOTE: Instead of just saving the output to a file using the arcpy
+		##		raster object method, we use CopyRaster here instead which allows
+		##		data compression to be implemented correctly.  We also set the
 		##		arcpy.env.pyramid variable to not produce pyramids but by default
 		##		the CopyRaster call creates them, so we have to call the function
 		##		to remove them according to the environment setting above:
-		outRas = arcpy.CopyRaster_management(outRas, out_path, "DEFAULTS", "0", "-999", "NONE", "NONE", "32_BIT_FLOAT")
+		outRas = arcpy.CopyRaster_management(outRas, out_path, "DEFAULTS", "", "-999", "NONE", "NONE", "32_BIT_FLOAT")
 		outRas = arcpy.BuildPyramids_management(outRas)
 
 		##	NOTE: So there's a bug in the arcpy raster optimization that
@@ -191,7 +191,7 @@ def process_point_area(dataset_folder):
 	##	NOTE:  This is one more kludge-y workaround for ArcGIS and arcpy
 	##		bugginess.  For most cases except very large rasters like when
 	##		dealing with China or Indonesia using one raster file for the
-	##		post-feater-to-raster conversion seems to work.  But Python just
+	##		post-feature-to-raster conversion seems to work.  But Python just
 	##		bails for some large raster-cases.  Therefore we have to use this
 	##		series of tmpRas objects in addition to the setting of things to
 	##		None for the post-conversion process.  Hopefully one of these days
@@ -221,7 +221,7 @@ def process_point_area(dataset_folder):
 
 		##	This line can be commented to turn this behavior off (for example if you
 		##		end up with no data bars in ArcGIS 10.0):
-		#arcpy.env.extent = ""
+		arcpy.env.extent = ""
 
 		outRas = arcpy.FeatureToRaster_conversion(data_path + country + "/" + dataset_folder + "/Derived/" + dataset_name + ".shp", "FID", tmpRas1, 100)
 		print("PROCESSED:  " + dataset_folder + " Feature to Raster")
@@ -230,9 +230,13 @@ def process_point_area(dataset_folder):
 		outRas = Raster(tmpRas1) * 1
 		print("PROCESSED:  " + dataset_folder + " Multiplication")
 		#outRas.save( tmpRas2 )
-		outRas = arcpy.CopyRaster_management(outRas, tmpRas2, "DEFAULTS", "0", "4294967295", "NONE", "NONE", "32_BIT_UNSIGNED")
+		outRas = arcpy.CopyRaster_management(outRas, tmpRas2, "DEFAULTS", "", "4294967295", "NONE", "NONE", "32_BIT_UNSIGNED")
 		outRas = arcpy.BuildPyramids_management(outRas)
 		outRas = None
+
+		##	Delete our temporary raster:
+		arcpy.Delete_management(tmpRas1)
+
 		print("PROCESSED:  " + dataset_folder + " Output Saved")
 
 
@@ -240,7 +244,7 @@ def process_point_area(dataset_folder):
 		out_path = data_path + country + "/" + dataset_folder + "/Derived/" + dataset_name + "_dst.tif"
 		outRas = arcpy.sa.EucDistance(tmpRas)
 		#outRas.save(out_path)
-		outRas = arcpy.CopyRaster_management(outRas, out_path, "DEFAULTS", "0", "-999", "NONE", "NONE", "32_BIT_FLOAT")
+		outRas = arcpy.CopyRaster_management(outRas, out_path, "DEFAULTS", "", "-999", "NONE", "NONE", "32_BIT_FLOAT")
 		outRas = arcpy.BuildPyramids_management(outRas)
 		outRas = None
 
@@ -248,7 +252,7 @@ def process_point_area(dataset_folder):
 		out_path = data_path + country + "/" + dataset_folder + "/Derived/" + dataset_name + "_cls.tif"
 		outRas =  IsNull(Raster(tmpRas)) == 0
 		#outRas.save(out_path)
-		outRas = arcpy.CopyRaster_management(outRas, out_path, "DEFAULTS", "0", "3", "NONE", "NONE", "2_BIT")
+		outRas = arcpy.CopyRaster_management(outRas, out_path, "DEFAULTS", "", "3", "NONE", "NONE", "2_BIT")
 		outRas = arcpy.BuildPyramids_management(outRas)
 		outRas = None
 
@@ -258,7 +262,7 @@ def process_point_area(dataset_folder):
 		##outRas = arcpy.sa.FocalStatistics(outRas,NbrRectangle(11,11,"CELL"),"MEAN","DATA")
 		#outRas = arcpy.sa.FocalStatistics(outRas,NbrCircle(5,"CELL"),"MEAN","DATA")
 		##outRas.save(out_path)
-		#outRas = arcpy.CopyRaster_management(outRas, out_path, "DEFAULTS", "0", "-999", "NONE", "NONE", "32_BIT_FLOAT")
+		#outRas = arcpy.CopyRaster_management(outRas, out_path, "DEFAULTS", "", "-999", "NONE", "NONE", "32_BIT_FLOAT")
 		#outRas = arcpy.BuildPyramids_management(outRas)
 		#outRas = None
 
@@ -298,7 +302,7 @@ def process_raster_binary(dataset_folder):
 
 		#out_path = out_path[:-8] + "_prp.tif"
 		##outRas.save(out_path)
-		#outRas = arcpy.CopyRaster_management(outRas, out_path, "DEFAULTS", "0", "-999", "NONE", "NONE", "32_BIT_FLOAT")
+		#outRas = arcpy.CopyRaster_management(outRas, out_path, "DEFAULTS", "", "-999", "NONE", "NONE", "32_BIT_FLOAT")
 		#outRas = arcpy.BuildPyramids_management(outRas)
 		#outRas = None
 
@@ -310,7 +314,7 @@ def process_raster_binary(dataset_folder):
 
 		out_path = out_path[:-8] + "_dst.tif"
 		#outRas.save(out_path)
-		outRas = arcpy.CopyRaster_management(outRas, out_path, "DEFAULTS", "0", "-999", "NONE", "NONE", "32_BIT_FLOAT")
+		outRas = arcpy.CopyRaster_management(outRas, out_path, "DEFAULTS", "", "-999", "NONE", "NONE", "32_BIT_FLOAT")
 		outRas = arcpy.BuildPyramids_management(outRas)
 		outRas = None
 
@@ -559,7 +563,7 @@ for lc in ['011', '040', '130', '140', '150', '160', '190', '200', '210', '230',
 	if not os.path.isfile(out_path) or not skip_existing:
 		outRas =  Raster(landcover_path) == int(lc)
 		#outRas.save(out_path)
-		outRas = arcpy.CopyRaster_management(outRas, out_path, "DEFAULTS", "0", "3", "NONE", "NONE", "2_BIT")
+		outRas = arcpy.CopyRaster_management(outRas, out_path, "DEFAULTS", "", "3", "NONE", "NONE", "2_BIT")
 		outRas = arcpy.BuildPyramids_management(outRas)
 		outRas = None
 
@@ -581,7 +585,7 @@ out_path = landcover_path[:-4] + "_cls" + lc + ".tif"
 if not os.path.isfile(out_path) or not skip_existing:
 	outRas =  (Raster(landcover_path) == 190) + (Raster(landcover_path) == 240)
 	#outRas.save(out_path)
-	outRas = arcpy.CopyRaster_management(outRas, out_path, "DEFAULTS", "0", "3", "NONE", "NONE", "2_BIT")
+	outRas = arcpy.CopyRaster_management(outRas, out_path, "DEFAULTS", "", "3", "NONE", "NONE", "2_BIT")
 	outRas = arcpy.BuildPyramids_management(outRas)
 	outRas = None
 
@@ -593,7 +597,7 @@ out_path = landcover_path[:-4] + "_prp" + lc + ".tif"
 #	#outRas = arcpy.sa.FocalStatistics(in_path,NbrRectangle(11,11,"CELL"),"MEAN","DATA")
 #	outRas = arcpy.sa.FocalStatistics(in_path,NbrCircle(5,"CELL"),"MEAN","DATA")
 #	#outRas.save(out_path)
-#	outRas = arcpy.CopyRaster_management(outRas, out_path, "DEFAULTS", "0", "-999", "NONE", "NONE", "32_BIT_FLOAT")
+#	outRas = arcpy.CopyRaster_management(outRas, out_path, "DEFAULTS", "", "-999", "NONE", "NONE", "32_BIT_FLOAT")
 #	outRas = arcpy.BuildPyramids_management(outRas)
 #	outRas = None
 
@@ -610,9 +614,10 @@ for lc in ['011', '040', '130', '140', '150', '160', '190', '200', '210', '230',
 		outRas = arcpy.sa.EucDistance(tmpRas)
 
 		#outRas.save(out_path)
-		outRas = arcpy.CopyRaster_management(outRas, out_path, "DEFAULTS", "0", "-999", "NONE", "NONE", "32_BIT_FLOAT")
+		outRas = arcpy.CopyRaster_management(outRas, out_path, "DEFAULTS", "", "-999", "NONE", "NONE", "32_BIT_FLOAT")
 		outRas = arcpy.BuildPyramids_management(outRas)
 		outRas = None
+
 
 
 
@@ -680,7 +685,7 @@ if ("NPP" in dataset_folders):
 		out_path = tmp_path + "/" + output_name
 
 		#outCon.save(out_path)
-		outCon = arcpy.CopyRaster_management(outCon, out_path, "DEFAULTS", "0", "65535", "NONE", "NONE", "16_BIT_UNSIGNED")
+		outCon = arcpy.CopyRaster_management(outCon, out_path, "DEFAULTS", "", "65535", "NONE", "NONE", "16_BIT_UNSIGNED")
 		outCon = arcpy.BuildPyramids_management(outCon)
 		outCon = None
 
@@ -1209,7 +1214,7 @@ if ("Elevation" in dataset_folders):
 		out_path = tmp_path + "/" + output_name
 
 		#outRas.save(out_path)
-		outRas = arcpy.CopyRaster_management(outRas, out_path, "DEFAULTS", "0", "-999", "NONE", "NONE", "32_BIT_FLOAT")
+		outRas = arcpy.CopyRaster_management(outRas, out_path, "DEFAULTS", "", "-999", "NONE", "NONE", "32_BIT_FLOAT")
 		outRas = arcpy.BuildPyramids_management(outRas)
 		outRas = None
 		print("	FINISHED: Slope...")

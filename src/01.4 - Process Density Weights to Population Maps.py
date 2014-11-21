@@ -65,6 +65,7 @@ use_urban = True
 ##			census_folder option below), it must be the rate from the more
 ##			recent census data to	2010 (i.e. from 2009 to 2010 for Vietnam) -
 ##			so calculation, for	VNM, is for one year:
+GR_years = [2010, 2015, 2020]
 GR_urb = [1.784610171,2.461325436,3.255025143]
 GR_rur = [1.124849442,1.207599938,1.281287482]
 #GR_years = [2000]
@@ -348,9 +349,9 @@ if use_urban:
 
 	##	Now adjust land cover by burning in our urban data:
 	#landcover = landcover*(urban) + 190*(urban)
-	##	NOTE: From 2014-05-16 to 2014-09-24 this line was the previous rather 
-	##		than the following, which incorrectly burned in the urban class into 
-	##		the land cover and hence resulted in the incorrect, rural growth rate 
+	##	NOTE: From 2014-05-16 to 2014-09-24 this line was the previous rather
+	##		than the following, which incorrectly burned in the urban class into
+	##		the land cover and hence resulted in the incorrect, rural growth rate
 	##		being applied to the entire map, rather than the urban growth rate.
 	##		The following corrects this:
 	landcover = landcover*Con(urban==1,0,1) + 190*(urban)
@@ -358,7 +359,7 @@ if use_urban:
 	##	Save this land cover out for testing (can be commented):
 	outPath = output_path + "tmp/landcover_urban.tif"
 	#landcover.save(outPath)
-	landcover = arcpy.CopyRaster_management(landcover, outPath, "DEFAULTS", "0", "65535", "NONE", "NONE", "16_BIT_UNSIGNED")
+	landcover = arcpy.CopyRaster_management(landcover, outPath, "DEFAULTS", "", "65535", "NONE", "NONE", "16_BIT_UNSIGNED")
 	landcover = arcpy.BuildPyramids_management(landcover)
 
 
@@ -402,14 +403,14 @@ if not dataset_path or not skip_existing:
 	##		of ArcGIS and arcpy set the raster object to None like this.
 	##		Discovered here:
 	##			http://gis.stackexchange.com/questions/46897/saving-rasters-in-a-python-for-loop-fails-only-on-last-iteration
-	
+
 	##		Also, in order to implement compression and make sure we are only using
-	##		32-bit Floating output I implemented a temporary raster save plus 
-	##		call to copy raster, subsequently removing the temporary file and 
+	##		32-bit Floating output I implemented a temporary raster save plus
+	##		call to copy raster, subsequently removing the temporary file and
 	##		resulting output pyramid layer for reduced data storage:
 	#popmap.save(outPath)
 	#popmap = None
-	popmap = arcpy.CopyRaster_management(popmap, outPath, "DEFAULTS", "0", "-999", "NONE", "NONE", "32_BIT_FLOAT")
+	popmap = arcpy.CopyRaster_management(popmap, outPath, "DEFAULTS", "", "-999", "NONE", "NONE", "32_BIT_FLOAT")
 	popmap = arcpy.BuildPyramids_management(popmap)
 	popmap = None
 
@@ -435,7 +436,7 @@ for popyear in GR_years:
 
 			#popmap_year.save(outPath)
 			#popmap_year = None
-			popmap_year = arcpy.CopyRaster_management(popmap_year, outPath, "DEFAULTS", "0", "-999", "NONE", "NONE", "32_BIT_FLOAT")
+			popmap_year = arcpy.CopyRaster_management(popmap_year, outPath, "DEFAULTS", "", "-999", "NONE", "NONE", "32_BIT_FLOAT")
 			popmap_year = arcpy.BuildPyramids_management(popmap_year)
 			popmap_year = None
 
@@ -463,7 +464,7 @@ for popyear in GR_years:
 
 			#popmap_year_adj.save(outPath)
 			#popmap_year_adj = None
-			popmap_year_adj = arcpy.CopyRaster_management(popmap_year_adj, outPath, "DEFAULTS", "0", "-999", "NONE", "NONE", "32_BIT_FLOAT")
+			popmap_year_adj = arcpy.CopyRaster_management(popmap_year_adj, outPath, "DEFAULTS", "", "-999", "NONE", "NONE", "32_BIT_FLOAT")
 			popmap_year_adj = arcpy.BuildPyramids_management(popmap_year_adj)
 			popmap_year_adj = None
 
@@ -535,9 +536,9 @@ if use_urban:
 
 	##	Now adjust land cover by burning in our urban data:
 	#landcover = landcover*(urban) + 190*(urban)
-	##	NOTE: From 2014-05-16 to 2014-09-24 this line was the previous rather 
-	##		than the following, which incorrectly burned in the urban class into 
-	##		the land cover and hence resulted in the incorrect, rural growth rate 
+	##	NOTE: From 2014-05-16 to 2014-09-24 this line was the previous rather
+	##		than the following, which incorrectly burned in the urban class into
+	##		the land cover and hence resulted in the incorrect, rural growth rate
 	##		being applied to the entire map, rather than the urban growth rate.
 	##		The following corrects this:
 	landcover = landcover*Con(urban==1,0,1) + 190*(urban)
@@ -577,7 +578,7 @@ if not dataset_path or not skip_existing:
 
 	#popmap.save(outPath)
 	#popmap = None
-	popmap = arcpy.CopyRaster_management(popmap, outPath, "DEFAULTS", "0", "-999", "NONE", "NONE", "32_BIT_FLOAT")
+	popmap = arcpy.CopyRaster_management(popmap, outPath, "DEFAULTS", "", "-999", "NONE", "NONE", "32_BIT_FLOAT")
 	popmap = arcpy.BuildPyramids_management(popmap)
 	popmap = None
 
@@ -603,7 +604,7 @@ for popyear in GR_years:
 
 			#popmap_year.save(outPath)
 			#popmap_year = None
-			popmap_year = arcpy.CopyRaster_management(popmap_year, outPath, "DEFAULTS", "0", "-999", "NONE", "NONE", "32_BIT_FLOAT")
+			popmap_year = arcpy.CopyRaster_management(popmap_year, outPath, "DEFAULTS", "", "-999", "NONE", "NONE", "32_BIT_FLOAT")
 			popmap_year = arcpy.BuildPyramids_management(popmap_year)
 			popmap_year = None
 
@@ -632,7 +633,7 @@ for popyear in GR_years:
 
 			#popmap_year_adj.save(outPath)
 			#popmap_year_adj = None
-			popmap_year_adj = arcpy.CopyRaster_management(popmap_year_adj, outPath, "DEFAULTS", "0", "-999", "NONE", "NONE", "32_BIT_FLOAT")
+			popmap_year_adj = arcpy.CopyRaster_management(popmap_year_adj, outPath, "DEFAULTS", "", "-999", "NONE", "NONE", "32_BIT_FLOAT")
 			popmap_year_adj = arcpy.BuildPyramids_management(popmap_year_adj)
 			popmap_year_adj = None
 
