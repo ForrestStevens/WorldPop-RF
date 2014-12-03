@@ -422,12 +422,16 @@ if (estimate_RF) {
 	#x_data <- x_data[,c(1:28)]
 	#x_data <- x_data[,grepl("lan_", names(x_data), perl=T)]
 
+	##	Change any data that have -9999 to NA, which for our data
+	##		indicate missing data or problems in covariate laers:
+	x_data[x_data == -9999] <- NA
+
 	##	Subset x_data to remove NAs:
 	indexX <- complete.cases(x_data)
 	
-	##	Remove any rows that have -9999 in any column,
-	##		indicating missing data or problems in covariate laers:
-	indexX <- indexX & !(apply(x_data==-9999, MARGIN=1, sum, na.rm=T) > 0)
+	###	Remove any rows that have -9999 in any column,
+	###		indicating missing data or problems in covariate laers:
+	#indexX <- indexX & !(apply(x_data==-9999, MARGIN=1, sum, na.rm=T) > 0)
 
 	##	Subset y_data to remove any of interest:
 	#indexY <- y_data < 10 		##	Subset data to remove outliers...
