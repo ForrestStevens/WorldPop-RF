@@ -61,6 +61,11 @@ intermediate_prj = "PROJCS['WGS_1984_UTM_Zone_35.5S',GEOGCS['GCS_WGS_1984',DATUM
 skip_existing = True
 
 
+##	Temporary raster output folder (added as a workaround for some ArcGIS
+##		raster processing inconsistency fixes):
+#raster_tmp_path = "C:/tmp/"
+
+
 ##	END:	Set per-country configuration options
 #####
 
@@ -197,7 +202,19 @@ def process_point_area(dataset_folder):
 	##		None for the post-conversion process.  Hopefully one of these days
 	##		we can remove this workaround...
 	##			http://forums.arcgis.com/threads/81281-quot-python.exe-has-stopped-working-quot-on-raster.save
-	tmpRas1 = data_path + country + "/" + dataset_folder + "/Derived/" + dataset_name + "_FID_tmp.tif"
+
+	##	Due to another odd bug working its way into ArcGIS 10.2.2 and the way it
+	##		converts points to raster, I had to add an intermediate raster processing
+	##		step here that saves the initial FeatureToRaster_conversion off to an
+	##		ESRI grid file, using the raster_tmp_path variable that is added and
+	##		configured above, rather than directly to .img or .tif (note that an ESRI
+	##		file GeoDatabase also works).  The bug occurs because of an apparent tile-
+	##		based processing algorithm where if no points are located within a tile
+	##		area zeroes are assigned as background values instead of NoData, which are
+	##		correctly used in tile locations where points are present.  This bug does not
+	##		crop up when rasters are saved off to GRID or GeoDatabase formats:
+	#tmpRas1 = data_path + country + "/" + dataset_folder + "/Derived/" + dataset_name + "_FID_tmp.tif"
+	tmpRas1 = data_path + country + "/" + dataset_folder + "/Derived/conv_FID_tmp"
 	tmpRas2 = data_path + country + "/" + dataset_folder + "/Derived/" + dataset_name + "_FID.tif"
 	tmpRas = data_path + country + "/" + dataset_folder + "/Derived/" + dataset_name + "_FID.tif"
 
@@ -206,7 +223,7 @@ def process_point_area(dataset_folder):
 		##		snap-to raster environment... Same here with all FeatureToRaster
 		##		calls...
 
-		##	Also, in ArcGIS 10.1 there's a bug with in FeatureRoRaster and
+		##	Also, in ArcGIS 10.1 there's a bug with in FeatureToRaster and
 		##		other raster conversion algorithms that creates blocks of 0
 		##		data in areas that occur outside the set processing extent.  I've
 		##		found only one workaround and that's to remove the processing
@@ -220,8 +237,8 @@ def process_point_area(dataset_folder):
 		tmp_extent = arcpy.env.extent
 
 		##	This line can be commented to turn this behavior off (for example if you
-		##		end up with no data bars in ArcGIS 10.0):
-		arcpy.env.extent = ""
+		##		end up with no data bars in ArcGIS 10.0 or 10.2):
+		#arcpy.env.extent = ""
 
 		outRas = arcpy.FeatureToRaster_conversion(data_path + country + "/" + dataset_folder + "/Derived/" + dataset_name + ".shp", "FID", tmpRas1, 100)
 		print("PROCESSED:  " + dataset_folder + " Feature to Raster")
