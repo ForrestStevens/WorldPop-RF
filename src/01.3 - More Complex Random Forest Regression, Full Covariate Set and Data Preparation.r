@@ -21,6 +21,10 @@ source("01.0 - Configuration.py.r")
 project_path <- paste(root_path, "/data/", country, "/", sep="")
 source(paste(project_path, "Metadata.r", sep=""))
 
+##	Set the number of cluster workers to the number of cores available
+##		on your machine or that you want to tie up during the RF prediction:
+cluster_workers <- 2
+
 ##	END:	Load configuration options
 #####
 
@@ -1024,9 +1028,32 @@ piece_text <- ""
 ##	Read in our buffer shapefile:
 census_buffer_path <- paste(project_path, "Census/Derived", sep="")
 census_buffer <- readOGR(dsn=census_buffer_path, layer="census_buffer")
-census_mask <- rasterize(census_buffer, zonal_raster)
+
+#census_mask <- rasterize(census_buffer, zonal_raster)
+##  This sucks and is slow so going to try something else:
+#require(gdalUtils)
+##  NOTE: If we had the latest version of GDAL then we wouldn't
+##    have to create and save off the raster first, but instead
+##    use the commented out flags below:
+#census_mask <- writeRaster(zonal_raster*0, filename="C:/tmp/census_mask.tif", format="GTiff", datatype="INT1S", overwrite=TRUE)
+#census_mask <- gdal_rasterize(
+#  #src_datasource=gsub("/", "\\\\", census_buffer_path)
+#  src_datasource=census_buffer_path,
+#  l="census_buffer", 
+#  dst_filename="C:\\tmp\\census_mask.tif",
+#  burn=1,
+#  #te=c(my_extent@xmin, my_extent@ymin, my_extent@xmax, my_extent@ymax),
+#  #tr=c(xres(zonal_raster), yres(zonal_raster)),
+#  #ts=c(zonal_raster@ncols, zonal_raster@nrows),
+#  output_Raster=TRUE
+#)
+census_mask <- writeRaster(zonal_raster, "C:/tmp/census_mask.tif", format="GTiff", datatype="INT2U", overwrite=TRUE, options=c("COMPRESS=LZW"))
+system(paste0("gdal_rasterize -burn 1 -l census_buffer ", census_buffer_path, " C:\\tmp\\census_mask.tif"))
+census_mask <- raster("C:/tmp/census_mask.tif")
+
 census_mask <- crop( census_mask, my_extent )
 #plot(census_mask)
+
 
 ##	Re-set the extent based on the sometimes slightly different extent
 ##		post-cropping:
@@ -1136,7 +1163,7 @@ covariate_stack <- eval(parse( text=
 #covariate_stack <- brick(raster_list)
 
 
-beginCluster(n=2)
+beginCluster(n=cluster_workers)
 prediction_raster <- cluster_predict(prediction_raster, quant_output=FALSE)
 endCluster()
 
