@@ -129,6 +129,8 @@ zonal_raster <- paste(workspace_dir, "/census_zones.tif", sep="")
 zonal_points <- paste(workspace_dir, "/census_zones_points.shp", sep="")
 zonal_raster_stats <- paste(workspace_dir, "/zonal.tif", sep="")
 zonal_points_extract <- paste(workspace_dir, "/census_zones_points_extract.shp", sep="")
+cell_count_stats <- paste(workspace_dir, "/cell_count.tif", sep="")
+cell_count_points_extract <- paste(workspace_dir, "/cell_count_points_extract.shp", sep="")
 
 
 ##	We don't assume that we've already processed the census file and
@@ -152,7 +154,7 @@ rpygeo.geoprocessor(
 		"    from arcpy.sa import *\n",
 		"    arcpy.FeatureToRaster_conversion(\"", census_file, "\", \"ADMINID\", \"", zonal_raster, "\", 0.0008333)\n",
 		"    gp.ZonalStatistics_sa(\"", zonal_raster, "\", \"Value\", \"", output_file, "\" ,\"", zonal_raster_stats, "\", \"SUM\", \"DATA\")\n",
-    "    count_raster = Raster(\"", zonal_raster, "\")*0+1\n",
+    "    count_raster = Raster(\"", output_file, "\")*0+1\n",
 		"    gp.ZonalStatistics_sa(\"", zonal_raster, "\", \"Value\", count_raster,\"", cell_count_stats, "\", \"SUM\", \"DATA\")\n",
 		"    arcpy.FeatureToPoint_management(\"", census_file, "\", \"", zonal_points, "\", \"INSIDE\")\n",
 		"    gp.ExtractValuesToPoints_sa(\"", zonal_points, "\", \"", zonal_raster_stats, "\", \"", zonal_points_extract, "\", \"NONE\", \"VALUE_ONLY\")\n",
@@ -189,7 +191,7 @@ if (file.exists(paste(workspace_dir, "/rpygeo.msg", sep=""))) {
 ##		in the prediction density layer.  This will result in a value of -9999
 ##		(missing) in the zonal output.  We'll exclude these:
 output_dbf <- output_dbf[output_dbf$RASTERVALU >= 0,]
-counts_dbf <- counts_dbf[output_dbf$RASTERVALU >= 0,]
+counts_dbf <- counts_dbf[counts_dbf$RASTERVALU >= 0,]
 
 observed <- output_dbf$ADMINPOP
 predicted <- output_dbf$RASTERVALU
