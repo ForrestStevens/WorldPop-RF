@@ -433,6 +433,11 @@ if (estimate_RF) {
 	##	Subset x_data to remove NAs:
 	indexX <- complete.cases(x_data)
 	
+	##	How to create a random sample of a certain size from input data:
+	#sampleSize <- 1000
+	#randomSample <- 1:length(indexX) %in% sample(1:length(indexX), sampleSize, replace=FALSE)
+	#indexX <- indexX * randomSample
+	
 	###	Remove any rows that have -9999 in any column,
 	###		indicating missing data or problems in covariate laers:
 	#indexX <- indexX & !(apply(x_data==-9999, MARGIN=1, sum, na.rm=T) > 0)
