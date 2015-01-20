@@ -290,20 +290,51 @@ for (i in names(metadata)[names(metadata) != "Census"]) {
 	
 	} else {
 
-		##		We had to set the warning=FALSE flag so that the Z-dimension
+		##	We had to set the warning=FALSE flag so that the Z-dimension
 		##		discarded warnings did not disrupt the output rendering for 
 		##		shapefiles... However the options() call seems to do nothing...
 		#options(warn=-1)
 		#dataset <- readOGR( dsn=gsub("/$", "", derived_path), layer=gsub(".shp$", "", metadata[[i]]$dataset_name))
 		#options(warn=0)
 
+		##	Our workaround the warnings above unfortunately caused a problem
+		##		with shapefiles produced by certain software (like OSM-derived)
+		##		data which has Z and M dimensions.  Therefore we need to use
+		##		readOGR() for these:
 		if (metadata[[i]]$dataset_class == "polygon") {
-			dataset <- readShapePoly(metadata[[i]]$path)
+			dataset <- tryCatch( 
+				{	readShapePoly(metadata[[i]]$path) },
+				warning = function(w) {},
+				error   = function(e) {
+					options(warn=-1)
+					dataset <- readOGR( dsn=gsub("/$", "", derived_path), layer=gsub(".shp$", "", metadata[[i]]$dataset_name))
+					options(warn=0)
+				},
+				finally = {}
+			)
 		} else if (metadata[[i]]$dataset_class == "point") {
-			dataset <- readShapePoints(metadata[[i]]$path)
+			dataset <- tryCatch( 
+				{	readShapePoints(metadata[[i]]$path) },
+				warning = function(w) {},
+				error   = function(e) {
+					options(warn=-1)
+					dataset <- readOGR( dsn=gsub("/$", "", derived_path), layer=gsub(".shp$", "", metadata[[i]]$dataset_name))
+					options(warn=0)
+				},
+				finally = {}
+			)
 		} else {
 			##	metadata[[i]]$dataset_class == "linear"
-			dataset <- readShapeLines(metadata[[i]]$path)
+			dataset <- tryCatch( 
+				{	readShapeLines(metadata[[i]]$path) },
+				warning = function(w) {},
+				error   = function(e) {
+					options(warn=-1)
+					dataset <- readOGR( dsn=gsub("/$", "", derived_path), layer=gsub(".shp$", "", metadata[[i]]$dataset_name))
+					options(warn=0)
+				},
+				finally = {}
+			)
 		}
 
 		text_out <- capture.output(print(dataset))
