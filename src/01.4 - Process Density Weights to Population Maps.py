@@ -252,7 +252,8 @@ out_path = output_path + "tmp/" + out_name
 data_desc = arcpy.Describe(in_path)
 input_prj = data_desc.SpatialReference.exportToString()
 
-arcpy.ProjectRaster_management(in_path,out_path,final_prj,"BILINEAR","0.0008333","#","#",input_prj)
+if not os.path.isfile(out_path) or not skip_existing:
+	arcpy.ProjectRaster_management(in_path,out_path,final_prj,"BILINEAR","0.0008333","#","#",input_prj)
 
 ##	Set our snapping environment to our new, reprojected and
 ##		prediction_density layer:
@@ -341,7 +342,7 @@ if use_urban:
 	input_prj = data_desc.SpatialReference.exportToString()
 
 	if not os.path.isfile(urban_path) or not skip_existing:
-	 arcpy.ProjectRaster_management(in_path,urban_path,final_prj,"NEAREST","0.000833","#","#",input_prj)
+		arcpy.ProjectRaster_management(in_path,urban_path,final_prj,"NEAREST","0.000833","#","#",input_prj)
 
 	##	This assumes that your urban raster, however it was created is binary
 	##		with 1 indicating urban areas and 0 indicating non-urban:
