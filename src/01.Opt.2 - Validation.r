@@ -57,6 +57,7 @@ require(raster)
 require(RPyGeo)
 require(foreign)
 require(ggplot2)
+library(Hmisc)
 
 
 ##	Parameters and defaults:
@@ -216,16 +217,20 @@ mae
 ##	Scatterplot of data:
 #qplot(predicted, observed)
 
-png(file=paste(output_path, "predicted_vs_observed_v", rf_version, ".png", sep=""))
+png(file=paste(output_path, "predicted_vs_observed_v", rf_version, ".png", sep=""), width=600, height=400)
 plot(y=predicted, x=observed, col=rgb(0,0,0,0.2), xlim=c(min(c(observed, predicted)), max(c(observed, predicted))), ylim=c(min(c(observed, predicted)), max(c(observed, predicted))), xlab="Observed", ylab="Predicted", pch=16, cex=0.7, main=paste("Estimated Counts From ", country_name, " vs. Finer Scale Unit Counts", sep=""))
 lines(lowess(y=predicted, x=observed), col=rgb(1,0,0,0.5), lty=2)
 abline(a=0, b=1, lty=2, col="darkgrey")
+histSpike(observed, add=TRUE, col=rgb(1,0,0,0.5), lwd=1, nint=100)
+#histSpike(observed, type="density", add=TRUE, col=rgb(1,0,0,0.5), lwd=1, nint=100)
+histSpike(predicted, 2, add=TRUE, col=rgb(1,0,0,0.5), lwd=1, nint=100)
+#histSpike(predicted, 2, type="density", add=TRUE, col=rgb(1,0,0,0.5), lwd=1, nint=100)
 
 text(y=max(c(observed, predicted))/10*4, x=max(c(observed, predicted))/10*5.5, paste("RMSE: ", format(rmse, nsmall=2, digits=2), sep=""), pos=4)
 text(y=max(c(observed, predicted))/10*3, x=max(c(observed, predicted))/10*5.5, paste("RMSE/Area: ", format(rmse_area, nsmall=2, digits=2), sep=""), pos=4)
 text(y=max(c(observed, predicted))/10*2, x=max(c(observed, predicted))/10*5.5, paste("%RMSE: ", format(pct_rmse, nsmall=2, digits=2), sep=""), pos=4)
 text(y=max(c(observed, predicted))/10*1, x=max(c(observed, predicted))/10*5.5, paste("MAE: ", format(mae, nsmall=2, digits=2), sep=""), pos=4)
-legend("topright", legend=c("1:1", "lowess Fit"), lty=c(2,2), col=c("darkgrey", rgb(1,0,0,0.5)))
+legend("topright", legend=c("1:1", "lowess Fit", "Histogram"), lty=c(2,2,1), col=c("darkgrey", rgb(1,0,0,0.5), rgb(1,0,0,0.5)))
 dev.off()
 
 
@@ -233,12 +238,66 @@ dev.off()
 plot(y=predicted, x=observed, col=rgb(0,0,0,0.2), xlim=c(min(c(observed, predicted)), max(c(observed, predicted))), ylim=c(min(c(observed, predicted)), max(c(observed, predicted))), xlab="Observed", ylab="Predicted", pch=16, cex=0.7, main=paste("Estimated Counts From ", country_name, " vs. Finer Scale Unit Counts", sep=""))
 lines(lowess(y=predicted, x=observed), col=rgb(1,0,0,0.5), lty=2)
 abline(a=0, b=1, lty=2, col="darkgrey")
+histSpike(observed, add=TRUE, col=rgb(1,0,0,0.5), lwd=1, nint=100)
+#histSpike(observed, type="density", add=TRUE, col=rgb(1,0,0,0.5), lwd=1, nint=100)
+histSpike(predicted, 2, add=TRUE, col=rgb(1,0,0,0.5), lwd=1, nint=100)
+#histSpike(predicted, 2, type="density", add=TRUE, col=rgb(1,0,0,0.5), lwd=1, nint=100)
 
 text(y=max(c(observed, predicted))/10*4, x=max(c(observed, predicted))/10*5.5, paste("RMSE: ", format(rmse, nsmall=2, digits=2), sep=""), pos=4)
 text(y=max(c(observed, predicted))/10*3, x=max(c(observed, predicted))/10*5.5, paste("RMSE/Area: ", format(rmse_area, nsmall=2, digits=2), sep=""), pos=4)
 text(y=max(c(observed, predicted))/10*2, x=max(c(observed, predicted))/10*5.5, paste("%RMSE: ", format(pct_rmse, nsmall=2, digits=2), sep=""), pos=4)
 text(y=max(c(observed, predicted))/10*1, x=max(c(observed, predicted))/10*5.5, paste("MAE: ", format(mae, nsmall=2, digits=2), sep=""), pos=4)
-legend("topright", legend=c("1:1", "lowess Fit"), lty=c(2,2), col=c("darkgrey", rgb(1,0,0,0.5)))
+legend("topright", legend=c("1:1", "lowess Fit", "Histogram"), lty=c(2,2,1), col=c("darkgrey", rgb(1,0,0,0.5), rgb(1,0,0,0.5)))
+
+
+
+##  Calculate errors and plots for densities, people per hectare:
+observed_d <- output_dbf$ADMINPOP / area
+predicted_d <- output_dbf$RASTERVALU / area
+
+##  Calculate RMSE:
+rmse_d <- sqrt(sum((observed_d - predicted_d)^2) / length(observed_d))
+rmse_d
+
+##	Calculate %RMSE (percentage of the mean census block size):
+pct_rmse_d <- rmse_d/mean(observed_d)*100
+pct_rmse_d
+
+##	Calculate MAE:
+mae_d <- sum(abs(observed_d - predicted_d)) / length(observed_d)
+mae_d
+
+
+png(file=paste(output_path, "predicted_vs_observed_v", rf_version, "_density.png", sep=""), width=600, height=400)
+plot(y=predicted_d, x=observed_d, col=rgb(0,0,0,0.2), xlim=c(min(c(observed_d, predicted_d)), max(c(observed_d, predicted_d))), ylim=c(min(c(observed_d, predicted_d)), max(c(observed_d, predicted_d))), xlab="Observed Density", ylab="Predicted Density", pch=16, cex=0.7, main=paste("Estimated Density From ", country_name, " vs. Finer Scale Unit Density", sep=""))
+lines(lowess(y=predicted_d, x=observed_d), col=rgb(1,0,0,0.5), lty=2)
+abline(a=0, b=1, lty=2, col="darkgrey")
+histSpike(observed_d, add=TRUE, col=rgb(1,0,0,0.5), lwd=1, nint=100)
+#histSpike(observed_d, type="density", add=TRUE, col=rgb(1,0,0,0.5), lwd=1, nint=100)
+histSpike(predicted_d, 2, add=TRUE, col=rgb(1,0,0,0.5), lwd=1, nint=100)
+#histSpike(predicted_d, 2, type="density", add=TRUE, col=rgb(1,0,0,0.5), lwd=1, nint=100)
+
+text(y=max(c(observed_d, predicted_d))/10*4, x=max(c(observed_d, predicted_d))/10*5.5, paste("RMSE: ", format(rmse_d, nsmall=2, digits=2), sep=""), pos=4)
+text(y=max(c(observed_d, predicted_d))/10*3, x=max(c(observed_d, predicted_d))/10*5.5, paste("%RMSE: ", format(pct_rmse_d, nsmall=2, digits=2), sep=""), pos=4)
+text(y=max(c(observed_d, predicted_d))/10*2, x=max(c(observed_d, predicted_d))/10*5.5, paste("MAE: ", format(mae_d, nsmall=2, digits=2), sep=""), pos=4)
+legend("topright", legend=c("1:1", "lowess Fit", "Histogram"), lty=c(2,2,1), col=c("darkgrey", rgb(1,0,0,0.5), rgb(1,0,0,0.5)))
+dev.off()
+
+
+##	Repeat the plot for visualizing in R:
+plot(y=predicted_d, x=observed_d, col=rgb(0,0,0,0.2), xlim=c(min(c(observed_d, predicted_d)), max(c(observed_d, predicted_d))), ylim=c(min(c(observed_d, predicted_d)), max(c(observed_d, predicted_d))), xlab="Observed Density", ylab="Predicted Density", pch=16, cex=0.7, main=paste("Estimated Counts From ", country_name, " vs. Finer Scale Unit Counts", sep=""))
+lines(lowess(y=predicted_d, x=observed_d), col=rgb(1,0,0,0.5), lty=2)
+abline(a=0, b=1, lty=2, col="darkgrey")
+histSpike(observed_d, add=TRUE, col=rgb(1,0,0,0.5), lwd=1, nint=100)
+#histSpike(observed_d, type="density", add=TRUE, col=rgb(1,0,0,0.5), lwd=1, nint=100)
+histSpike(predicted_d, 2, add=TRUE, col=rgb(1,0,0,0.5), lwd=1, nint=100)
+#histSpike(predicted_d, 2, type="density", add=TRUE, col=rgb(1,0,0,0.5), lwd=1, nint=100)
+
+text(y=max(c(observed_d, predicted_d))/10*4, x=max(c(observed_d, predicted_d))/10*5.5, paste("RMSE: ", format(rmse_d, nsmall=2, digits=2), sep=""), pos=4)
+text(y=max(c(observed_d, predicted_d))/10*3, x=max(c(observed_d, predicted_d))/10*5.5, paste("%RMSE: ", format(pct_rmse_d, nsmall=2, digits=2), sep=""), pos=4)
+text(y=max(c(observed_d, predicted_d))/10*2, x=max(c(observed_d, predicted_d))/10*5.5, paste("MAE: ", format(mae_d, nsmall=2, digits=2), sep=""), pos=4)
+legend("topright", legend=c("1:1", "lowess Fit", "Histogram"), lty=c(2,2,1), col=c("darkgrey", rgb(1,0,0,0.5), rgb(1,0,0,0.5)))
+
 
 
 ##	Return our working directory to the source folder:
