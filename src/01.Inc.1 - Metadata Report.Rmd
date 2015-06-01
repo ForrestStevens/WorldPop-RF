@@ -121,7 +121,9 @@ if (paste(project_path, "/! New Census", sep="") %in% dataset_folders) {
 Prediction Weighting Layer Used in Population Redistribution
 --------------------------------------------------------
 
-The data presented below represent the predicted number of people per ~100 m pixel as estimated using the random forest (RF) model as described in Stevens, et al. (In Press).  The following pages contain a description of the RF model and its covariates, their sources and any metadata collected for each covariate.  The prediction weighting layer is used to dasymetrically redistribute the census counts and project counts to match estimated populations based on UN estimates for the final population maps provided by AfriPop, AsiaPop and AmeriPop.
+The data presented below represent the predicted number of people per ~100 m pixel as estimated using the random forest (RF) model as described in Stevens, et al. ([2015](http://journals.plos.org/plosone/article?id=10.1371/journal.pone.0107042)).  The following pages contain a description of the RF model and its covariates, their sources and any metadata collected for each covariate.  The prediction weighting layer is used to dasymetrically redistribute the census counts and project counts to match estimated populations based on UN estimates for the final population maps provided by WorldPop.
+
+###### Stevens, F. R., Gaughan, A. E., Linard, C., & Tatem, A. J. (2015). Disaggregating Census Data for Population Mapping Using Random Forests with Remotely-Sensed and Ancillary Data. [PLOS ONE, 10(2), e0107042. doi:10.1371/journal.pone.0107042](http://journals.plos.org/plosone/article?id=10.1371/journal.pone.0107042)
 
 ```{r predict_density, echo=FALSE, fig.height=10, fig.width=10, out.width="720px", out.height="720px", cache=TRUE, warning=FALSE}
 z.lim = c(0,max_pop)
