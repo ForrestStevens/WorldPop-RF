@@ -192,7 +192,14 @@ out_path = output_path + "tmp/" + out_name
 data_desc = arcpy.Describe(in_path)
 input_prj = data_desc.SpatialReference.exportToString()
 
+tmp_extent = arcpy.env.extent
+##	There may be an inconsistency in the way that 10.3 handles extents
+##		during reprojection.  To fix this the following line may be 
+##		uncommented:
+#arcpy.env.extent = ""
+
 arcpy.ProjectRaster_management(in_path,out_path,final_prj,"BILINEAR","0.0008333","#","#",input_prj)
+arcpy.env.extent = tmp_extent
 
 ##	Set our snapping environment to our new, reprojected and
 ##		majority resampled land cover file:
