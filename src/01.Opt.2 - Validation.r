@@ -285,7 +285,7 @@ dev.off()
 
 
 ##	Repeat the plot for visualizing in R:
-plot(y=predicted_d, x=observed_d, col=rgb(0,0,0,0.2), xlim=c(min(c(observed_d, predicted_d)), max(c(observed_d, predicted_d))), ylim=c(min(c(observed_d, predicted_d)), max(c(observed_d, predicted_d))), xlab="Observed Density", ylab="Predicted Density", pch=16, cex=0.7, main=paste("Estimated Counts From ", country_name, " vs. Finer Scale Unit Counts", sep=""))
+plot(y=predicted_d, x=observed_d, col=rgb(0,0,0,0.2), xlim=c(min(c(observed_d, predicted_d)), max(c(observed_d, predicted_d))), ylim=c(min(c(observed_d, predicted_d)), max(c(observed_d, predicted_d))), xlab="Observed Density", ylab="Predicted Density", pch=16, cex=0.7, main=paste("Estimated Counts From ", country_name, " vs. Finer Scale Unit Density", sep=""))
 lines(lowess(y=predicted_d, x=observed_d), col=rgb(1,0,0,0.5), lty=2)
 abline(a=0, b=1, lty=2, col="darkgrey")
 histSpike(observed_d, add=TRUE, col=rgb(1,0,0,0.5), lwd=1, nint=100)
