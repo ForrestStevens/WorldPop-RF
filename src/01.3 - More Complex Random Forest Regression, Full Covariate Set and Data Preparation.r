@@ -362,7 +362,11 @@ if (estimate_RF) {
 
 
 	if (!is.null(fixed_set)) {
-		country_old <- fixed_set[1]
+		if (country %in% fixed_set) {
+			country_old <- fixed_set[2]
+		} else {
+			country_old <- fixed_set[1]
+		}
 		output_path_tmp <- paste(root_path, "/output/", country_old, "/tmp/", sep="")
 		
 		##	Load the first listed, existing country and rename its popfit_final:
